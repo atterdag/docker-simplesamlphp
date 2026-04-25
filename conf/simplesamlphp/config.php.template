@@ -99,6 +99,7 @@ $config = [
         'core'        => true,
         'admin'       => true,
         'saml'        => true,
+        'authoauth2'  => true,
         'customtheme' => true,
         'cron'        => true,
         'metarefresh' => true,

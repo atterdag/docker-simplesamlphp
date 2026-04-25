@@ -1,3 +1,4 @@
+FROM composer:2 AS composer
 FROM php:8.3-apache
 
 LABEL org.opencontainers.image.title="docker-simplesamlphp" \
@@ -12,11 +13,17 @@ LABEL org.opencontainers.image.title="docker-simplesamlphp" \
 ARG SIMPLESAMLPHP_VERSION=2.5.0
 
 # ---------------------------------------------------------------------------
+# Composer binary from the official Composer image
+# ---------------------------------------------------------------------------
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+
+# ---------------------------------------------------------------------------
 # System packages
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         gettext-base \
+        git \
         libicu-dev \
         libmemcached-dev \
         libzip-dev \
@@ -65,6 +72,18 @@ RUN set -eux; \
         /var/simplesamlphp/data \
         /var/simplesamlphp/log \
         /var/cache/simplesamlphp
+
+# ---------------------------------------------------------------------------
+# Install OIDC / OAuth2 authentication module (supports OpenID Connect SP)
+# cirrusidentity/simplesamlphp-module-authoauth2 v4.x supports SSP 2.x.
+# ---------------------------------------------------------------------------
+RUN cd /var/simplesamlphp \
+    && composer require \
+        cirrusidentity/simplesamlphp-module-authoauth2 \
+        --no-interaction \
+        --no-progress \
+        --prefer-dist \
+    && composer clear-cache
 
 # ---------------------------------------------------------------------------
 # Copy configuration templates
@@ -171,6 +190,13 @@ ENV SIMPLESAMLPHP_CRON_SECRET="" \
     SIMPLESAMLPHP_METAREFRESH_METADATA_URL="" \
     SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR=/var/simplesamlphp/metadata/metarefresh \
     SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER=345600
+
+# SimpleSAMLphp – OpenID Connect (OIDC) Relying Party configuration
+# These are intentionally left empty; set them at runtime to enable the
+# oidc-sp authentication source.  See authsources.php.template for details.
+ENV SIMPLESAMLPHP_OIDC_ISSUER="" \
+    SIMPLESAMLPHP_OIDC_CLIENT_ID="" \
+    SIMPLESAMLPHP_OIDC_CLIENT_SECRET=""
 
 # ---------------------------------------------------------------------------
 # Volumes
