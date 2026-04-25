@@ -41,6 +41,8 @@ RUN pecl install memcached \
 # Apache modules
 # ---------------------------------------------------------------------------
 RUN a2enmod \
+        deflate \
+        expires \
         headers \
         http2 \
         rewrite \
