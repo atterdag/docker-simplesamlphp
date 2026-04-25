@@ -63,6 +63,9 @@ spec:
           containers:
             - name: metarefresh
               # Use a minimal curl image – no need for the full PHP stack.
+              # Override to pull from a corporate registry or artifact-management
+              # proxy (e.g. JFrog Artifactory):
+              #   image: artifactory.example.com/docker/curlimages/curl:latest
               image: curlimages/curl:latest
 
               command:

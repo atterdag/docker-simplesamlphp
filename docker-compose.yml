@@ -14,7 +14,9 @@
 
 services:
   memcached:
-    image: memcached:alpine
+    # Override MEMCACHED_IMAGE to pull from a corporate registry or proxy:
+    #   MEMCACHED_IMAGE=artifactory.example.com/docker/memcached:alpine docker compose up
+    image: ${MEMCACHED_IMAGE:-memcached:alpine}
     restart: unless-stopped
 
   simplesamlphp:
@@ -22,6 +24,17 @@ services:
       context: .
       args:
         SIMPLESAMLPHP_VERSION: "2.5.0"
+        # ---------------------------------------------------------------------------
+        # Artifact-registry overrides – set to route image pulls and downloads
+        # through a corporate proxy (e.g. JFrog Artifactory).
+        # ---------------------------------------------------------------------------
+        # Base images (Docker Hub by default):
+        COMPOSER_IMAGE: ${COMPOSER_IMAGE:-composer:2}
+        PHP_IMAGE: ${PHP_IMAGE:-php:8.4-apache}
+        # Full URL to the SimpleSAMLphp release tarball (GitHub Releases by default):
+        SIMPLESAMLPHP_TARBALL_URL: ${SIMPLESAMLPHP_TARBALL_URL:-}
+        # Packagist mirror for Composer packages (packagist.org by default):
+        COMPOSER_PACKAGIST_URL: ${COMPOSER_PACKAGIST_URL:-}
 
     depends_on:
       - memcached

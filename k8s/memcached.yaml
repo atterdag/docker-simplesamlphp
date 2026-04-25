@@ -26,6 +26,9 @@ spec:
     spec:
       containers:
         - name: memcached
+          # Override this image reference to pull from a corporate registry or
+          # artifact-management proxy (e.g. JFrog Artifactory):
+          #   image: artifactory.example.com/docker/memcached:alpine
           image: memcached:alpine
           ports:
             - name: memcache
