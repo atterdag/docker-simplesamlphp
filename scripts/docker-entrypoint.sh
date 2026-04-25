@@ -47,7 +47,7 @@ fi
 : "${SIMPLESAMLPHP_TIMEZONE:=UTC}"
 : "${SIMPLESAMLPHP_LOGGING_HANDLER:=errorlog}"
 : "${SIMPLESAMLPHP_LOG_DIR:=/var/simplesamlphp/log}"
-: "${SIMPLESAMLPHP_STORE_TYPE:=phpsession}"
+: "${SIMPLESAMLPHP_STORE_TYPE:=memcache}"
 : "${MEMCACHE_SERVER_HOST:=memcached}"
 : "${MEMCACHE_SERVER_PORT:=11211}"
 
