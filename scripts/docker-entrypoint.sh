@@ -187,7 +187,6 @@ chown -R www-data:www-data \
     /var/simplesamlphp/cert \
     /var/simplesamlphp/log \
     /var/cache/simplesamlphp \
-    "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}" \
-    "${SIMPLESAMLPHP_LOG_DIR_INSTANCE}"
+    "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}"
 
 exec "$@"

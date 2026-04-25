@@ -42,11 +42,14 @@ data:
   # Leave empty to use the entrypoint default (webmaster@<DOMAIN_NAME>)
   SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL: ""               # <CHANGE_ME>
   SIMPLESAMLPHP_TIMEZONE:        "UTC"
-  # Set to 'file' to write logs to the persistent volume (simplesamlphp-logs
-  # PVC below).  Logs are written to per-pod sub-directories named after
-  # $HOSTNAME (the pod name), making every replica uniquely identifiable.
-  # Use 'errorlog' to revert to stdout/stderr ('kubectl logs' behaviour).
-  SIMPLESAMLPHP_LOGGING_HANDLER: "file"
+  # Logging handler – controls where SimpleSAMLphp and Apache write logs.
+  # 'errorlog' (default): logs go to stdout/stderr and appear in 'kubectl logs'.
+  # 'file': logs are written to SIMPLESAMLPHP_LOG_DIR/<pod-name>/ on the
+  #         persistent volume (simplesamlphp-logs PVC below).  Each pod gets
+  #         its own sub-directory named after $HOSTNAME (the pod name), making
+  #         every replica uniquely identifiable.  Switch to 'file' when you
+  #         want to persist logs beyond the pod lifecycle.
+  SIMPLESAMLPHP_LOGGING_HANDLER: "errorlog"
   SIMPLESAMLPHP_LOG_DIR:         "/var/simplesamlphp/log"
   SIMPLESAMLPHP_STORE_TYPE:      "memcache"
   MEMCACHE_SERVER_HOST:          "memcached"
