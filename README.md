@@ -70,6 +70,16 @@ custom Apache snippets.
 | `MEMCACHE_SERVER_HOST` | `memcached` | Memcached hostname (used when `SIMPLESAMLPHP_STORE_TYPE=memcache`) |
 | `MEMCACHE_SERVER_PORT` | `11211` | Memcached port |
 
+### Automated metadata management (metarefresh)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SIMPLESAMLPHP_CRON_SECRET` | *(auto-generated)* | Secret key that protects the cron HTTP trigger URL. Set a stable value in production (`openssl rand -hex 32`). |
+| `SIMPLESAMLPHP_METAREFRESH_CRON_TAG` | `metarefresh` | Cron tag that links the metarefresh set to the cron module |
+| `SIMPLESAMLPHP_METAREFRESH_METADATA_URL` | *(empty)* | URL of the remote federation / IdP aggregate metadata XML to fetch |
+| `SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR` | `/var/simplesamlphp/metadata/metarefresh` | Directory inside the container where converted PHP metadata files are written |
+| `SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER` | `345600` | Seconds to keep stale metadata when the remote source is unavailable (default: 4 days) |
+
 ---
 
 ## Volume mounts
@@ -285,6 +295,109 @@ the ConfigMap with your IdP's `saml20-idp-remote.php` content.
 
 ---
 
+## Automated metadata management (metarefresh)
+
+The image includes the SimpleSAMLphp `cron` and `metarefresh` modules, which
+allow federation or IdP aggregate metadata to be fetched and converted
+automatically without rebuilding the image.
+
+### How it works
+
+1. The `metarefresh` module fetches a remote SAML 2.0 metadata XML aggregate
+   and converts each entity into SimpleSAMLphp's PHP flatfile format, writing
+   the files to `SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR`.
+2. The `cron` module exposes an HTTP endpoint that triggers the refresh when
+   called with the correct tag and secret:
+   `https://<FQDN>/simplesaml/module.php/cron/run/<tag>/<secret>`
+3. The refreshed metadata directory is registered as a second `flatfile`
+   metadata source in `config.php`, so SimpleSAMLphp automatically picks up
+   the converted files.
+
+### Configuration
+
+Set at least these two environment variables:
+
+```bash
+SIMPLESAMLPHP_CRON_SECRET=<openssl rand -hex 32>
+SIMPLESAMLPHP_METAREFRESH_METADATA_URL=https://federation.example.org/metadata.xml
+```
+
+The cron tag defaults to `metarefresh` and the output directory to
+`/var/simplesamlphp/metadata/metarefresh`.
+
+### Triggering a refresh
+
+**Docker Compose – exec into the running container:**
+
+```bash
+docker compose exec simplesamlphp metarefresh.sh
+```
+
+**Docker – one-shot standalone container:**
+
+```bash
+docker run --rm \
+  -e SIMPLESAMLPHP_CRON_SECRET=<secret> \
+  -e SIMPLESAMLPHP_METAREFRESH_METADATA_URL=https://federation.example.org/metadata.xml \
+  -v ./metadata:/var/simplesamlphp/metadata \
+  <image> metarefresh.sh
+```
+
+The container runs the entrypoint (which generates all SimpleSAMLphp
+configuration), starts Apache temporarily, calls the cron endpoint, and exits.
+
+**Curl – against a running instance:**
+
+```bash
+curl "https://<FQDN>/simplesaml/module.php/cron/run/metarefresh/<secret>"
+```
+
+### Kubernetes CronJob
+
+`k8s/metarefresh-cronjob.yaml` provides a ready-to-use CronJob manifest with
+two approaches:
+
+| Approach | How it works | When to use |
+|----------|--------------|-------------|
+| **A (default)** | A `curlimages/curl` pod calls the cron HTTP endpoint on the running SimpleSAMLphp Service | Simplest; requires the main Deployment to be running |
+| **B (commented out)** | The SimpleSAMLphp image runs `metarefresh.sh` as a standalone job, writing output to a shared PVC | Fully self-contained; works even if the main Deployment is restarted |
+
+**Quick start (Approach A):**
+
+1. Add `SIMPLESAMLPHP_CRON_SECRET` to the `simplesamlphp-admin` Secret in
+   `k8s/simplesamlphp.yaml` (see the `<CHANGE_ME>` placeholder).
+2. Set `SIMPLESAMLPHP_METAREFRESH_METADATA_URL` in the ConfigMap.
+3. Apply the manifests:
+
+   ```bash
+   kubectl apply -f k8s/simplesamlphp.yaml
+   kubectl apply -f k8s/metarefresh-cronjob.yaml
+   ```
+
+4. Trigger a manual run to verify:
+
+   ```bash
+   kubectl -n simplesamlphp create job --from=cronjob/simplesamlphp-metarefresh metarefresh-test
+   kubectl -n simplesamlphp logs -l app.kubernetes.io/component=metarefresh
+   ```
+
+> **Tip:** For refreshed metadata to survive SimpleSAMLphp pod restarts,
+> mount a PersistentVolumeClaim at `/var/simplesamlphp/metadata` in the
+> Deployment so that the `metarefresh` output directory persists.
+
+### Validating metadata signatures
+
+To verify the metadata aggregate signature, place the federation signing
+certificate inside the container (e.g. via a volume mount or Secret) and
+uncomment the `'certificates'` line in
+`conf/simplesamlphp/module_metarefresh.php.template`:
+
+```php
+'certificates' => ['/var/simplesamlphp/cert/federation-signing.pem'],
+```
+
+---
+
 ## Building
 
 ```bash
@@ -306,16 +419,21 @@ docker build --build-arg SIMPLESAMLPHP_VERSION=2.5.0 -t simplesamlphp .
 ├── k8s/
 │   ├── namespace.yaml               # simplesamlphp Namespace
 │   ├── memcached.yaml               # Memcached Deployment + Service
-│   └── simplesamlphp.yaml           # ConfigMap, Secrets, Deployment, Service
+│   ├── simplesamlphp.yaml           # ConfigMap, Secrets, Deployment, Service
+│   └── metarefresh-cronjob.yaml     # CronJob for automated metadata refresh
 ├── conf/
 │   ├── apache/
 │   │   └── simplesamlphp.conf.template   # Apache VirtualHost template
 │   └── simplesamlphp/
 │       ├── config.php.template           # SimpleSAMLphp main config
-│       └── authsources.php.template      # SP / auth source config
+│       ├── authsources.php.template      # SP / auth source config
+│       ├── module_cron.php.template      # Cron module config
+│       └── module_metarefresh.php.template  # MetaRefresh module config
 ├── metadata/
 │   └── saml20-idp-remote.php             # Default (empty) IdP metadata
 └── scripts/
-    └── docker-entrypoint.sh              # Entrypoint: resolves env vars,
-                                          # runs envsubst, starts Apache
+    ├── docker-entrypoint.sh              # Entrypoint: resolves env vars,
+    │                                     # runs envsubst, starts Apache
+    └── metarefresh.sh                    # Ad-hoc / standalone metadata
+                                          # refresh trigger script
 ```

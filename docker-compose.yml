@@ -77,6 +77,32 @@ services:
       MEMCACHE_SERVER_HOST:     ${MEMCACHE_SERVER_HOST:-memcached}
       MEMCACHE_SERVER_PORT:     ${MEMCACHE_SERVER_PORT:-11211}
 
+      # -----------------------------------------------------------------------
+      # Automated metadata management (metarefresh + cron modules)
+      #
+      # Set SIMPLESAMLPHP_METAREFRESH_METADATA_URL to the URL of the
+      # federation or IdP aggregate metadata XML you want to fetch automatically.
+      #
+      # Set SIMPLESAMLPHP_CRON_SECRET to a stable random value so that the
+      # cron trigger URL is predictable across container restarts:
+      #   openssl rand -hex 32
+      #
+      # Trigger a refresh manually (while the container is running):
+      #   docker compose exec simplesamlphp metarefresh.sh
+      #
+      # Or as a one-shot standalone container (stops after refresh):
+      #   docker run --rm \
+      #     -e SIMPLESAMLPHP_CRON_SECRET=<secret> \
+      #     -e SIMPLESAMLPHP_METAREFRESH_METADATA_URL=<url> \
+      #     [-v ./metadata:/var/simplesamlphp/metadata] \
+      #     <image> metarefresh.sh
+      # -----------------------------------------------------------------------
+      SIMPLESAMLPHP_CRON_SECRET:                ${SIMPLESAMLPHP_CRON_SECRET:-}
+      SIMPLESAMLPHP_METAREFRESH_CRON_TAG:       ${SIMPLESAMLPHP_METAREFRESH_CRON_TAG:-metarefresh}
+      SIMPLESAMLPHP_METAREFRESH_METADATA_URL:   ${SIMPLESAMLPHP_METAREFRESH_METADATA_URL:-}
+      SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR:     ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR:-/var/simplesamlphp/metadata/metarefresh}
+      SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER:   ${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER:-345600}
+
     ports:
       - "80:80"
       - "443:443"

@@ -50,13 +50,40 @@ fi
 : "${MEMCACHE_SERVER_HOST:=memcached}"
 : "${MEMCACHE_SERVER_PORT:=11211}"
 
+# Cron module – secret key protects the HTTP trigger endpoint.
+# Auto-generate a secure random secret when one is not supplied, just like
+# SIMPLESAMLPHP_SECRET_SALT above.
+if [ -z "${SIMPLESAMLPHP_CRON_SECRET:-}" ]; then
+    SIMPLESAMLPHP_CRON_SECRET="$(openssl rand -hex 32)"
+    echo "INFO: SIMPLESAMLPHP_CRON_SECRET was not set – auto-generated a random value." \
+         "Set SIMPLESAMLPHP_CRON_SECRET explicitly in production so the cron trigger" \
+         "URL stays stable across container restarts." >&2
+fi
+
+# MetaRefresh module defaults
+: "${SIMPLESAMLPHP_METAREFRESH_CRON_TAG:=metarefresh}"
+: "${SIMPLESAMLPHP_METAREFRESH_METADATA_URL:=}"
+: "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR:=/var/simplesamlphp/metadata/metarefresh}"
+: "${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER:=345600}"
+
+# Validate that EXPIRE_AFTER is a positive integer so that the generated
+# module_metarefresh.php cannot contain syntactically invalid PHP.
+if ! printf '%s' "${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER}" | grep -qE '^[0-9]+$'; then
+    echo "ERROR: SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER must be a non-negative integer" \
+         "(got '${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER}')." >&2
+    exit 1
+fi
+
 export SIMPLESAMLPHP_BASE_URL_PATH SIMPLESAMLPHP_SP_ENTITY_ID \
        SIMPLESAMLPHP_SP_PRIVATEKEY SIMPLESAMLPHP_SP_CERTIFICATE \
        SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED \
        SIMPLESAMLPHP_ADMIN_PASSWORD SIMPLESAMLPHP_SECRET_SALT \
        SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL \
        SIMPLESAMLPHP_TIMEZONE SIMPLESAMLPHP_LOGGING_HANDLER \
-       SIMPLESAMLPHP_STORE_TYPE MEMCACHE_SERVER_HOST MEMCACHE_SERVER_PORT
+       SIMPLESAMLPHP_STORE_TYPE MEMCACHE_SERVER_HOST MEMCACHE_SERVER_PORT \
+       SIMPLESAMLPHP_CRON_SECRET SIMPLESAMLPHP_METAREFRESH_CRON_TAG \
+       SIMPLESAMLPHP_METAREFRESH_METADATA_URL SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR \
+       SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER
 
 # ---------------------------------------------------------------------------
 # Generate Apache VirtualHost configuration from template
@@ -74,7 +101,7 @@ a2ensite simplesamlphp.conf >/dev/null 2>&1 || true
 # ---------------------------------------------------------------------------
 # Generate SimpleSAMLphp config/config.php from template
 # ---------------------------------------------------------------------------
-SSMPHP_CONFIG_VARS='${SIMPLESAMLPHP_BASE_URL_PATH} ${SIMPLESAMLPHP_SECRET_SALT} ${SIMPLESAMLPHP_ADMIN_PASSWORD} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL} ${SIMPLESAMLPHP_TIMEZONE} ${SIMPLESAMLPHP_LOGGING_HANDLER} ${SIMPLESAMLPHP_STORE_TYPE} ${MEMCACHE_SERVER_HOST} ${MEMCACHE_SERVER_PORT}'
+SSMPHP_CONFIG_VARS='${SIMPLESAMLPHP_BASE_URL_PATH} ${SIMPLESAMLPHP_SECRET_SALT} ${SIMPLESAMLPHP_ADMIN_PASSWORD} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL} ${SIMPLESAMLPHP_TIMEZONE} ${SIMPLESAMLPHP_LOGGING_HANDLER} ${SIMPLESAMLPHP_STORE_TYPE} ${MEMCACHE_SERVER_HOST} ${MEMCACHE_SERVER_PORT} ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}'
 envsubst "${SSMPHP_CONFIG_VARS}" \
     </var/simplesamlphp/config/config.php.template \
     >/var/simplesamlphp/config/config.php
@@ -86,6 +113,28 @@ SSMPHP_AUTH_VARS='${SIMPLESAMLPHP_SP_ENTITY_ID} ${SIMPLESAMLPHP_SP_PRIVATEKEY} $
 envsubst "${SSMPHP_AUTH_VARS}" \
     </var/simplesamlphp/config/authsources.php.template \
     >/var/simplesamlphp/config/authsources.php
+
+# ---------------------------------------------------------------------------
+# Generate SimpleSAMLphp config/module_cron.php from template
+# ---------------------------------------------------------------------------
+SSMPHP_CRON_VARS='${SIMPLESAMLPHP_CRON_SECRET} ${SIMPLESAMLPHP_METAREFRESH_CRON_TAG}'
+envsubst "${SSMPHP_CRON_VARS}" \
+    </var/simplesamlphp/config/module_cron.php.template \
+    >/var/simplesamlphp/config/module_cron.php
+
+# ---------------------------------------------------------------------------
+# Generate SimpleSAMLphp config/module_metarefresh.php from template
+# ---------------------------------------------------------------------------
+SSMPHP_METAREFRESH_VARS='${SIMPLESAMLPHP_METAREFRESH_CRON_TAG} ${SIMPLESAMLPHP_METAREFRESH_METADATA_URL} ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR} ${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER}'
+envsubst "${SSMPHP_METAREFRESH_VARS}" \
+    </var/simplesamlphp/config/module_metarefresh.php.template \
+    >/var/simplesamlphp/config/module_metarefresh.php
+
+# ---------------------------------------------------------------------------
+# Ensure the metarefresh output directory exists so SimpleSAMLphp can write
+# converted metadata files there on the first cron run.
+# ---------------------------------------------------------------------------
+mkdir -p "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}"
 
 # ---------------------------------------------------------------------------
 # If a bind-mounted saml20-idp-remote.php is not present, use the default
@@ -103,6 +152,7 @@ chown -R www-data:www-data \
     /var/simplesamlphp/metadata \
     /var/simplesamlphp/cert \
     /var/simplesamlphp/log \
-    /var/cache/simplesamlphp
+    /var/cache/simplesamlphp \
+    "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}"
 
 exec "$@"

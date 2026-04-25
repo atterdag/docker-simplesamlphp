@@ -1,0 +1,186 @@
+---
+# k8s/metarefresh-cronjob.yaml
+#
+# Kubernetes CronJob for automated SimpleSAMLphp metadata management.
+#
+# This manifest provides TWO approaches – choose the one that fits your setup:
+#
+# APPROACH A (default, active below):  HTTP trigger via curl
+#   A lightweight curl pod calls the SimpleSAMLphp cron HTTP endpoint on the
+#   running service.  Metarefresh executes inside the existing deployment pod
+#   and writes converted metadata to that pod's metadata volume.
+#   Simple to operate; requires the main SimpleSAMLphp Deployment to be running.
+#   For the refreshed metadata to survive pod restarts, mount a
+#   PersistentVolumeClaim at /var/simplesamlphp/metadata in the Deployment.
+#
+# APPROACH B (commented out below):  Standalone metarefresh container
+#   Runs the same SimpleSAMLphp image with the metarefresh.sh CMD.
+#   Self-contained; requires a shared PVC so the output is visible to the
+#   main Deployment.
+#
+# Quick start (Approach A):
+#   1. Add SIMPLESAMLPHP_CRON_SECRET to the simplesamlphp-admin Secret:
+#        kubectl -n simplesamlphp patch secret simplesamlphp-admin \
+#          --type=merge -p '{"stringData":{"SIMPLESAMLPHP_CRON_SECRET":"<secret>"}}'
+#   2. Set SIMPLESAMLPHP_METAREFRESH_METADATA_URL in the ConfigMap.
+#   3. kubectl apply -f k8s/metarefresh-cronjob.yaml
+
+# ---------------------------------------------------------------------------
+# APPROACH A – HTTP trigger (active)
+# ---------------------------------------------------------------------------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: simplesamlphp-metarefresh
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: metarefresh
+spec:
+  # Run at the top of every hour.  Adjust to match the cron tag interval.
+  schedule: "0 * * * *"
+
+  # Do not start a new job if the previous one has not finished yet.
+  concurrencyPolicy: Forbid
+
+  # Keep the last 3 successful and 1 failed job for troubleshooting.
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  jobTemplate:
+    spec:
+      # Retry up to 2 times on failure before marking the job as failed.
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: simplesamlphp
+            app.kubernetes.io/component: metarefresh
+        spec:
+          restartPolicy: OnFailure
+
+          containers:
+            - name: metarefresh
+              # Use a minimal curl image – no need for the full PHP stack.
+              image: curlimages/curl:latest
+
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  # Build the cron URL in a variable; do NOT echo the full URL to avoid
+                  # leaking CRON_SECRET in logs.
+                  CRON_URL="http://simplesamlphp/simplesaml/module.php/cron/run/${METAREFRESH_CRON_TAG}/${CRON_SECRET}"
+                  echo "[metarefresh] Calling cron tag '${METAREFRESH_CRON_TAG}' on http://simplesamlphp ..."
+                  HTTP_STATUS=$(curl -s -o /tmp/response.html -w '%{http_code}' "$CRON_URL")
+                  if [ "$HTTP_STATUS" = "200" ]; then
+                    echo "[metarefresh] Success (HTTP 200)."
+                  else
+                    echo "[metarefresh] ERROR: HTTP ${HTTP_STATUS}" >&2
+                    cat /tmp/response.html >&2
+                    exit 1
+                  fi
+
+              env:
+                # Cron tag – must match SIMPLESAMLPHP_METAREFRESH_CRON_TAG in
+                # the ConfigMap (default: metarefresh).
+                - name: METAREFRESH_CRON_TAG
+                  valueFrom:
+                    configMapKeyRef:
+                      name: simplesamlphp-config
+                      key: SIMPLESAMLPHP_METAREFRESH_CRON_TAG
+
+                # Cron secret – must match SIMPLESAMLPHP_CRON_SECRET in the
+                # main deployment.  Store it in the same Secret.
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: simplesamlphp-admin
+                      key: SIMPLESAMLPHP_CRON_SECRET
+
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+
+# ---------------------------------------------------------------------------
+# APPROACH B – Standalone metarefresh container (commented out)
+#
+# Uncomment this section and comment out Approach A above to use a standalone
+# pod instead.  Requires:
+#   - A PersistentVolumeClaim named 'simplesamlphp-metadata' bound to
+#     /var/simplesamlphp/metadata in both the Deployment and this CronJob.
+#   - The same Secrets (sp-cert, simplesamlphp-admin, simplesamlphp-tls) as
+#     the main Deployment.
+# ---------------------------------------------------------------------------
+# apiVersion: batch/v1
+# kind: CronJob
+# metadata:
+#   name: simplesamlphp-metarefresh
+#   namespace: simplesamlphp
+#   labels:
+#     app.kubernetes.io/name: simplesamlphp
+#     app.kubernetes.io/component: metarefresh
+# spec:
+#   schedule: "0 * * * *"
+#   concurrencyPolicy: Forbid
+#   successfulJobsHistoryLimit: 3
+#   failedJobsHistoryLimit: 1
+#   jobTemplate:
+#     spec:
+#       backoffLimit: 2
+#       template:
+#         metadata:
+#           labels:
+#             app.kubernetes.io/name: simplesamlphp
+#             app.kubernetes.io/component: metarefresh
+#         spec:
+#           restartPolicy: OnFailure
+#           containers:
+#             - name: metarefresh
+#               image: ghcr.io/atterdag/docker-simplesamlphp:latest  # <CHANGE_ME>
+#               command: ["metarefresh.sh"]
+#               envFrom:
+#                 - configMapRef:
+#                     name: simplesamlphp-config
+#               env:
+#                 - name: SIMPLESAMLPHP_ADMIN_PASSWORD
+#                   valueFrom:
+#                     secretKeyRef:
+#                       name: simplesamlphp-admin
+#                       key: SIMPLESAMLPHP_ADMIN_PASSWORD
+#                 - name: SIMPLESAMLPHP_SECRET_SALT
+#                   valueFrom:
+#                     secretKeyRef:
+#                       name: simplesamlphp-admin
+#                       key: SIMPLESAMLPHP_SECRET_SALT
+#                 - name: SIMPLESAMLPHP_CRON_SECRET
+#                   valueFrom:
+#                     secretKeyRef:
+#                       name: simplesamlphp-admin
+#                       key: SIMPLESAMLPHP_CRON_SECRET
+#               volumeMounts:
+#                 - name: sp-cert
+#                   mountPath: /var/simplesamlphp/cert
+#                   readOnly: true
+#                 - name: metadata
+#                   mountPath: /var/simplesamlphp/metadata
+#               resources:
+#                 requests:
+#                   cpu: 100m
+#                   memory: 128Mi
+#                 limits:
+#                   cpu: 500m
+#                   memory: 256Mi
+#           volumes:
+#             - name: sp-cert
+#               secret:
+#                 secretName: simplesamlphp-sp-cert
+#             - name: metadata
+#               persistentVolumeClaim:
+#                 claimName: simplesamlphp-metadata
