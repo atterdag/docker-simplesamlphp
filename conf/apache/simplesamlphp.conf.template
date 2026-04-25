@@ -207,7 +207,12 @@ LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" rid=%{UN
 
     # ---------------------------------------------------------------------------
     # Logging
+    # When SIMPLESAMLPHP_LOGGING_HANDLER=file, APACHE_LOG_DIR_INSTANCE points
+    # at the per-container sub-directory under SIMPLESAMLPHP_LOG_DIR so that
+    # Apache logs land on the same shared volume as the SimpleSAMLphp logs.
+    # For all other handlers it falls back to /var/log/apache2 which the base
+    # image symlinks to /dev/stdout and /dev/stderr, preserving 'docker logs'.
     # ---------------------------------------------------------------------------
-    ErrorLog  ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined_reqid
+    ErrorLog  ${APACHE_LOG_DIR_INSTANCE}/error.log
+    CustomLog ${APACHE_LOG_DIR_INSTANCE}/access.log combined_reqid
 </VirtualHost>
