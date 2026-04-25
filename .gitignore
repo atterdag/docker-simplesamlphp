@@ -1,0 +1,19 @@
+# Compiled files and caches
+/var/
+*.log
+*.pid
+
+# Local certificate directories used for development
+certs/
+
+# Editor and OS artefacts
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files that may contain secrets
+.env
+.env.*
+!.env.example

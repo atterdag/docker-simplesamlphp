@@ -1,0 +1,84 @@
+<?php
+
+/**
+ * SimpleSAMLphp authentication sources – generated at container start by
+ * docker-entrypoint.sh using envsubst(1).
+ *
+ * Environment variables substituted into this file (see entrypoint for defaults):
+ *   SIMPLESAMLPHP_SP_ENTITY_ID              – SP entityID URI
+ *   SIMPLESAMLPHP_SP_PRIVATEKEY             – filename of SP private key in certdir
+ *   SIMPLESAMLPHP_SP_CERTIFICATE            – filename of SP certificate in certdir
+ *   SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED – true|false (default: true)
+ *   SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED    – true|false (default: true)
+ *
+ * The SP private key and certificate must be placed in the certdir configured
+ * in config.php (default: /var/simplesamlphp/cert/).  Mount them as a
+ * Kubernetes Secret or Docker volume bind-mount.
+ *
+ * The IdP to use is read from metadata/saml20-idp-remote.php.  Mount that
+ * file from a Kubernetes ConfigMap or a Docker volume bind-mount.
+ */
+
+$config = [
+
+    // Admin authentication source – uses the password from config.php.
+    'admin' => [
+        'core:AdminPassword',
+    ],
+
+    // SAML 2.0 Service Provider
+    'default-sp' => [
+        'saml:SP',
+
+        /*
+         * The entityID for this SP.
+         * Injected from SIMPLESAMLPHP_SP_ENTITY_ID (default:
+         *   https://<FQDN>/simplesaml/module.php/saml/sp/metadata/default-sp).
+         */
+        'entityID' => '${SIMPLESAMLPHP_SP_ENTITY_ID}',
+
+        /*
+         * Private key and certificate used for signing AuthnRequests and
+         * decrypting encrypted assertions.
+         *
+         * Values are filenames relative to certdir (/var/simplesamlphp/cert/).
+         * Injected from SIMPLESAMLPHP_SP_PRIVATEKEY and
+         * SIMPLESAMLPHP_SP_CERTIFICATE.
+         */
+        'privatekey'  => '${SIMPLESAMLPHP_SP_PRIVATEKEY}',
+        'certificate' => '${SIMPLESAMLPHP_SP_CERTIFICATE}',
+
+        /*
+         * Require that assertions received from the IdP are signed.
+         * Injected from SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED (true|false).
+         */
+        'WantAssertionsSigned' => ${SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED},
+
+        /*
+         * Require that the entire SAML Response message is signed by the IdP.
+         * Injected from SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED (true|false).
+         */
+        'WantSignedResponse' => ${SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED},
+
+        /*
+         * The IdP to authenticate against.
+         * null = show a discovery page listing all IdPs from
+         * metadata/saml20-idp-remote.php.
+         * Set to the entityID string of a specific IdP to skip discovery.
+         */
+        'idp' => null,
+
+        /*
+         * Sign AuthnRequests sent to the IdP.
+         */
+        'sign.authnrequest' => true,
+
+        /*
+         * NameID format requested from the IdP.
+         */
+        'NameIDPolicy' => [
+            'Format'      => 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient',
+            'AllowCreate' => true,
+        ],
+    ],
+];
