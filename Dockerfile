@@ -1,5 +1,5 @@
 FROM composer:2 AS composer
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 LABEL org.opencontainers.image.title="docker-simplesamlphp" \
       org.opencontainers.image.description="SimpleSAMLphp running on Apache with PHP" \
@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gettext-base \
         git \
         libicu-dev \
+        libldap2-dev \
         libmemcached-dev \
         libzip-dev \
         unzip \
@@ -35,7 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # PHP extensions required by SimpleSAMLphp 2.x
 # ---------------------------------------------------------------------------
 RUN docker-php-ext-install \
+        bcmath \
         intl \
+        ldap \
         zip
 
 # ---------------------------------------------------------------------------
