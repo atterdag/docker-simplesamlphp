@@ -13,11 +13,18 @@
 #   SIMPLESAMLPHP_ADMIN_PASSWORD=<secret> docker compose up
 
 services:
+  memcached:
+    image: memcached:alpine
+    restart: unless-stopped
+
   simplesamlphp:
     build:
       context: .
       args:
         SIMPLESAMLPHP_VERSION: "2.5.0"
+
+    depends_on:
+      - memcached
 
     # -----------------------------------------------------------------------
     # Apache / network configuration
@@ -59,6 +66,16 @@ services:
 
       # Timezone
       SIMPLESAMLPHP_TIMEZONE: ${SIMPLESAMLPHP_TIMEZONE:-UTC}
+
+      # -----------------------------------------------------------------------
+      # Session store – use memcache backed by the memcached service above.
+      # The image default is 'phpsession' (works without a memcached server);
+      # docker-compose overrides it to 'memcache' because the memcached service
+      # is available in this stack. Set to 'phpsession' to revert.
+      # -----------------------------------------------------------------------
+      SIMPLESAMLPHP_STORE_TYPE: ${SIMPLESAMLPHP_STORE_TYPE:-memcache}
+      MEMCACHE_SERVER_HOST:     ${MEMCACHE_SERVER_HOST:-memcached}
+      MEMCACHE_SERVER_PORT:     ${MEMCACHE_SERVER_PORT:-11211}
 
     ports:
       - "80:80"
