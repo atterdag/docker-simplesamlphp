@@ -1,0 +1,7 @@
+# Never send these paths into the Docker build context
+.git
+.gitignore
+*.md
+certs/
+*.log
+*.pid

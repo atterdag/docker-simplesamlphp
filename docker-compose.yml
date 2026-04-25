@@ -1,0 +1,101 @@
+---
+# docker-compose.yml
+#
+# Starts SimpleSAMLphp with the most common configuration options.
+#
+# Override any environment variable shown below to customise the deployment.
+# Mount your SSL certificates, SP key/cert, and IdP metadata as volumes.
+#
+# Quick start:
+#   docker compose up --build
+#
+# For production, supply real certificates and override credentials:
+#   SIMPLESAMLPHP_ADMIN_PASSWORD=<secret> docker compose up
+
+services:
+  simplesamlphp:
+    build:
+      context: .
+      args:
+        SIMPLESAMLPHP_VERSION: "2.5.0"
+
+    # -----------------------------------------------------------------------
+    # Apache / network configuration
+    # These map to the Apache 'Define' directives via docker-entrypoint.sh.
+    # -----------------------------------------------------------------------
+    environment:
+      DOMAIN_NAME:  ${DOMAIN_NAME:-se.lemche.net}
+      SERVER_NAME:  ${SERVER_NAME:-simplesamlphp}
+      # The following can be left unset; the entrypoint will derive them:
+      #SERVER_ALIAS:         ${SERVER_NAME}
+      #FQDN:                 ${SERVER_NAME}.${DOMAIN_NAME}
+      #WEBMASTER:            webmaster@${DOMAIN_NAME}
+      #SSL_CERTIFICATE_FILE: /etc/ssl/certs/${FQDN}.crt
+      #SSL_PRIVATE_KEY_FILE: /etc/ssl/private/${FQDN}.key
+
+      # -----------------------------------------------------------------------
+      # SimpleSAMLphp SP configuration
+      # -----------------------------------------------------------------------
+      # Entity ID for this SP (defaults to https://<FQDN>/simplesaml/…)
+      #SIMPLESAMLPHP_SP_ENTITY_ID: https://simplesamlphp.se.lemche.net/simplesaml/...
+
+      # Filenames relative to /var/simplesamlphp/cert/
+      SIMPLESAMLPHP_SP_PRIVATEKEY:  ${SIMPLESAMLPHP_SP_PRIVATEKEY:-sp.key}
+      SIMPLESAMLPHP_SP_CERTIFICATE: ${SIMPLESAMLPHP_SP_CERTIFICATE:-sp.crt}
+
+      # Require signed assertions and signed response messages from the IdP
+      SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED: ${SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED:-true}
+      SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED:    ${SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED:-true}
+
+      # Admin password (CHANGE THIS in production)
+      SIMPLESAMLPHP_ADMIN_PASSWORD: ${SIMPLESAMLPHP_ADMIN_PASSWORD:-admin}
+
+      # Secret salt (auto-generated per container start if not set)
+      #SIMPLESAMLPHP_SECRET_SALT: <random-string>
+
+      # Technical contact
+      SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME:  ${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME:-Administrator}
+      SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL: ${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL:-}
+
+      # Timezone
+      SIMPLESAMLPHP_TIMEZONE: ${SIMPLESAMLPHP_TIMEZONE:-UTC}
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # -----------------------------------------------------------------------
+      # IdP metadata – mount your own saml20-idp-remote.php here.
+      #
+      # Docker bind-mount:
+      #   - ./my-idp-metadata.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+      #
+      # Kubernetes ConfigMap (see README for full spec):
+      #   name: idp-metadata, mountPath: /var/simplesamlphp/metadata/saml20-idp-remote.php
+      # -----------------------------------------------------------------------
+      - ${IDP_METADATA_FILE:-/dev/null}:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+
+      # -----------------------------------------------------------------------
+      # SP signing key and certificate (SAML signing/encryption, NOT TLS).
+      # Place sp.key and sp.crt (or whatever names you set in
+      # SIMPLESAMLPHP_SP_PRIVATEKEY / SIMPLESAMLPHP_SP_CERTIFICATE) in this
+      # directory.
+      #
+      # Kubernetes Secret (see README):
+      #   name: sp-certs, mountPath: /var/simplesamlphp/cert
+      # -----------------------------------------------------------------------
+      - ${SP_CERT_DIR:-./certs/sp}:/var/simplesamlphp/cert:ro
+
+      # -----------------------------------------------------------------------
+      # Apache TLS certificate and private key.
+      # The paths inside the container are determined by SSL_CERTIFICATE_FILE
+      # and SSL_PRIVATE_KEY_FILE (defaults:
+      #   /etc/ssl/certs/<FQDN>.crt
+      #   /etc/ssl/private/<FQDN>.key).
+      #
+      # Kubernetes Secret (see README):
+      #   name: tls-secret, mountPath: /etc/ssl/certs / /etc/ssl/private
+      # -----------------------------------------------------------------------
+      - ${SSL_CERT_DIR:-./certs/ssl/certs}:/etc/ssl/certs:ro
+      - ${SSL_KEY_DIR:-./certs/ssl/private}:/etc/ssl/private:ro

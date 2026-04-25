@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * SimpleSAMLphp main configuration – generated at container start by
+ * docker-entrypoint.sh using envsubst(1).
+ *
+ * Environment variables substituted into this file (see entrypoint for defaults):
+ *   SIMPLESAMLPHP_BASE_URL_PATH            – base URL (https://<FQDN>/simplesaml/)
+ *   SIMPLESAMLPHP_SECRET_SALT              – random salt for token generation
+ *   SIMPLESAMLPHP_ADMIN_PASSWORD           – admin UI password
+ *   SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME   – contact name
+ *   SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL  – contact e-mail
+ *   SIMPLESAMLPHP_TIMEZONE                 – PHP/display timezone (e.g. UTC)
+ *   SIMPLESAMLPHP_LOGGING_HANDLER          – logging handler: errorlog|syslog|file
+ */
+
+$config = [
+
+    /*
+     * baseurlpath may be a full URL (useful behind a reverse proxy) or just
+     * a URL path such as 'simplesaml/'.
+     */
+    'baseurlpath' => '${SIMPLESAMLPHP_BASE_URL_PATH}',
+
+    /*
+     * Filesystem paths used by SimpleSAMLphp.
+     * All paths are set to absolute values for container predictability.
+     */
+    'cachedir'  => '/var/cache/simplesamlphp',
+    'certdir'   => '/var/simplesamlphp/cert/',
+    'loggingdir' => null,      // required when logging.handler != 'file'
+    'datadir'   => '/var/simplesamlphp/data/',
+
+    /*
+     * Technical contact – shown in metadata and used for error notifications.
+     */
+    'technicalcontact_name'  => '${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME}',
+    'technicalcontact_email' => '${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL}',
+
+    'timezone' => '${SIMPLESAMLPHP_TIMEZONE}',
+
+    /*
+     * Security: secret salt used to generate secure hashes.
+     * MUST be changed from the default; the entrypoint auto-generates a
+     * random value when SIMPLESAMLPHP_SECRET_SALT is not explicitly set.
+     */
+    'secretsalt' => '${SIMPLESAMLPHP_SECRET_SALT}',
+
+    /*
+     * Admin password for the web UI.
+     * Override with SIMPLESAMLPHP_ADMIN_PASSWORD.
+     */
+    'auth.adminpassword' => '${SIMPLESAMLPHP_ADMIN_PASSWORD}',
+
+    'admin.protectindexpage' => false,
+    'admin.protectmetadata' => false,
+
+    /*
+     * Logging configuration.
+     * 'errorlog' writes to the PHP error log (captured by Docker/Apache).
+     * 'syslog'   sends to syslog.
+     * 'file'     writes to loggingdir (requires loggingdir to be set).
+     */
+    'logging.level'       => \SimpleSAML\Logger::NOTICE,
+    'logging.handler'     => '${SIMPLESAMLPHP_LOGGING_HANDLER}',
+    'logging.processname' => 'simplesamlphp',
+    'logging.logfile'     => 'simplesamlphp.log',
+
+    /*
+     * Enable/disable debug output and XML validation.
+     */
+    'debug' => [
+        'saml'        => false,
+        'backtraces'  => false,
+        'validatexml' => false,
+    ],
+
+    /*
+     * Modules enabled by default.
+     */
+    'module.enable' => [
+        'core'  => true,
+        'admin' => true,
+        'saml'  => true,
+    ],
+
+    /*
+     * Session configuration.
+     */
+    'session.duration'               => 8 * 60 * 60,  // 8 hours
+    'session.datastore.timeout'      => 4 * 60 * 60,  // 4 hours
+    'session.state.timeout'          => 60 * 60,       // 1 hour
+    'session.cookie.name'            => 'SimpleSAMLSessionID',
+    'session.cookie.lifetime'        => 0,
+    'session.cookie.path'            => '/',
+    'session.cookie.domain'          => '',
+    'session.cookie.secure'          => true,
+    'session.cookie.samesite'        => 'None',
+    'session.phpsession.cookiename'  => 'SimpleSAML',
+    'session.phpsession.savepath'    => null,
+    'session.phpsession.httponly'    => true,
+    'session.authtoken.cookiename'   => 'SimpleSAMLAuthToken',
+
+    /*
+     * Metadata sources – use the flatfile handler to read PHP metadata files
+     * from the metadata/ directory.
+     */
+    'metadata.sources' => [
+        ['type' => 'flatfile'],
+    ],
+
+    'metadata.sign.enable'    => false,
+    'metadata.sign.algorithm' => 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+
+    /*
+     * Data store – use the PHP session store for simplicity.
+     * For production consider 'memcache' or 'sql'.
+     */
+    'store.type' => 'phpsession',
+
+    'language.default'   => 'en',
+    'language.available' => ['en'],
+    'theme.use'          => 'default',
+];

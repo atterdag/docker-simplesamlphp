@@ -1,0 +1,100 @@
+# Apache VirtualHost configuration template for SimpleSAMLphp
+#
+# The Define directives below map Apache configuration variables from the
+# corresponding shell/environment variables.  Default values are set in
+# docker-entrypoint.sh before this template is processed with envsubst(1).
+#
+# Environment variables consumed (with defaults from the entrypoint):
+#   DOMAIN_NAME           – base domain                  (se.lemche.net)
+#   SERVER_NAME           – short hostname               (simplesamlphp)
+#   SERVER_ALIAS          – additional name              (${SERVER_NAME})
+#   FQDN                  – fully-qualified host name    (${SERVER_NAME}.${DOMAIN_NAME})
+#   WEBMASTER             – admin e-mail address         (webmaster@${DOMAIN_NAME})
+#   SSL_CERTIFICATE_FILE  – path to TLS certificate      (/etc/ssl/certs/${FQDN}.crt)
+#   SSL_PRIVATE_KEY_FILE  – path to TLS private key      (/etc/ssl/private/${FQDN}.key)
+
+# ---------------------------------------------------------------------------
+# Apache variable definitions (values injected by envsubst at container start)
+# ---------------------------------------------------------------------------
+Define DOMAIN_NAME          ${DOMAIN_NAME}
+Define SERVER_NAME          ${SERVER_NAME}
+Define SERVER_ALIAS         ${SERVER_ALIAS}
+Define FQDN                 ${FQDN}
+Define WEBMASTER            ${WEBMASTER}
+Define SSL_CERTIFICATE_FILE ${SSL_CERTIFICATE_FILE}
+Define SSL_PRIVATE_KEY_FILE ${SSL_PRIVATE_KEY_FILE}
+
+# ---------------------------------------------------------------------------
+# HTTP → HTTPS redirect
+# ---------------------------------------------------------------------------
+<VirtualHost *:80>
+    ServerName   ${FQDN}
+    ServerAlias  ${SERVER_ALIAS}
+    ServerAdmin  ${WEBMASTER}
+
+    RewriteEngine On
+    RewriteRule ^/?(.*) https://${FQDN}/$1 [R=301,L]
+</VirtualHost>
+
+# ---------------------------------------------------------------------------
+# HTTPS VirtualHost
+# ---------------------------------------------------------------------------
+<VirtualHost *:443>
+    ServerName   ${FQDN}
+    ServerAlias  ${SERVER_ALIAS}
+    ServerAdmin  ${WEBMASTER}
+
+    DocumentRoot /var/www/html
+
+    # ---------------------------------------------------------------------------
+    # SimpleSAMLphp – expose the public/ directory under /simplesaml
+    # ---------------------------------------------------------------------------
+    Alias /simplesaml /var/simplesamlphp/public
+
+    <Directory /var/simplesamlphp/public>
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+
+        # Required for SimpleSAMLphp routing
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule ^(.*)$ index.php [QSA,L]
+    </Directory>
+
+    # Deny access to sensitive directories
+    <Directory /var/simplesamlphp/config>
+        Require all denied
+    </Directory>
+    <Directory /var/simplesamlphp/metadata>
+        Require all denied
+    </Directory>
+    <Directory /var/simplesamlphp/cert>
+        Require all denied
+    </Directory>
+
+    # ---------------------------------------------------------------------------
+    # TLS configuration
+    # ---------------------------------------------------------------------------
+    SSLEngine             on
+    SSLCertificateFile    ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_PRIVATE_KEY_FILE}
+
+    # Modern TLS settings
+    SSLProtocol           all -SSLv3 -TLSv1 -TLSv1.1
+    SSLCipherSuite        ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+    SSLHonorCipherOrder   off
+    SSLSessionTickets     off
+
+    # Security headers
+    Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # ---------------------------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------------------------
+    ErrorLog  ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
