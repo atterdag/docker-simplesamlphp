@@ -1,5 +1,17 @@
-FROM composer:2 AS composer
-FROM php:8.4-apache
+# ---------------------------------------------------------------------------
+# Base-image overrides – set at build time to pull from a corporate registry
+# or an artifact management proxy (e.g. JFrog Artifactory):
+#
+#   docker build \
+#     --build-arg COMPOSER_IMAGE=artifactory.example.com/docker/composer:2 \
+#     --build-arg PHP_IMAGE=artifactory.example.com/docker/php:8.4-apache \
+#     ...
+# ---------------------------------------------------------------------------
+ARG COMPOSER_IMAGE=composer:2
+ARG PHP_IMAGE=php:8.4-apache
+
+FROM ${COMPOSER_IMAGE} AS composer
+FROM ${PHP_IMAGE}
 
 LABEL org.opencontainers.image.title="docker-simplesamlphp" \
       org.opencontainers.image.description="SimpleSAMLphp running on Apache with PHP" \
@@ -11,6 +23,22 @@ LABEL org.opencontainers.image.title="docker-simplesamlphp" \
 #   docker build --build-arg SIMPLESAMLPHP_VERSION=2.x.y ...
 # ---------------------------------------------------------------------------
 ARG SIMPLESAMLPHP_VERSION=2.5.0
+
+# ---------------------------------------------------------------------------
+# Artifact-registry overrides – set these to route downloads through a
+# corporate proxy (e.g. JFrog Artifactory) without changing anything else.
+#
+# SIMPLESAMLPHP_TARBALL_URL – full URL to the SimpleSAMLphp release tarball.
+#   Defaults to the official GitHub Releases URL for SIMPLESAMLPHP_VERSION.
+#   Override to point at an Artifactory generic / remote repository:
+#     --build-arg SIMPLESAMLPHP_TARBALL_URL=https://artifactory.example.com/...
+#
+# COMPOSER_PACKAGIST_URL – Composer repository URL used instead of packagist.org.
+#   Set to the Artifactory Composer remote-repository URL to cache PHP packages:
+#     --build-arg COMPOSER_PACKAGIST_URL=https://artifactory.example.com/api/composer/packagist
+# ---------------------------------------------------------------------------
+ARG SIMPLESAMLPHP_TARBALL_URL=""
+ARG COMPOSER_PACKAGIST_URL=""
 
 # ---------------------------------------------------------------------------
 # Composer binary from the official Composer image
@@ -65,9 +93,9 @@ RUN a2enmod \
 # The full-release tarball includes all optional modules.
 # ---------------------------------------------------------------------------
 RUN set -eux; \
+    TARBALL_URL="${SIMPLESAMLPHP_TARBALL_URL:-https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SIMPLESAMLPHP_VERSION}/simplesamlphp-${SIMPLESAMLPHP_VERSION}-full.tar.gz}"; \
     mkdir -p /var/simplesamlphp; \
-    curl -fsSL \
-        "https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SIMPLESAMLPHP_VERSION}/simplesamlphp-${SIMPLESAMLPHP_VERSION}-full.tar.gz" \
+    curl -fsSL "${TARBALL_URL}" \
         | tar -xz --strip-components=1 -C /var/simplesamlphp; \
     # Create required runtime directories
     mkdir -p \
@@ -81,6 +109,9 @@ RUN set -eux; \
 # cirrusidentity/simplesamlphp-module-authoauth2 v4.x supports SSP 2.x.
 # ---------------------------------------------------------------------------
 RUN cd /var/simplesamlphp \
+    && if [ -n "${COMPOSER_PACKAGIST_URL}" ]; then \
+        composer config --global repositories.packagist composer "${COMPOSER_PACKAGIST_URL}"; \
+    fi \
     && composer require \
         cirrusidentity/simplesamlphp-module-authoauth2 \
         --no-interaction \

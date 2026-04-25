@@ -585,6 +585,53 @@ docker build -t simplesamlphp .
 docker build --build-arg SIMPLESAMLPHP_VERSION=2.5.0 -t simplesamlphp .
 ```
 
+### Custom artifact registry / corporate proxy
+
+All external downloads performed during the image build can be redirected to
+an artifact management solution such as **JFrog Artifactory**, **Sonatype
+Nexus**, or any other Docker / generic / Composer proxy repository.
+
+#### Build ARGs
+
+| Argument | Default | Description |
+|---|---|---|
+| `COMPOSER_IMAGE` | `composer:2` | Composer builder image (Docker Hub) |
+| `PHP_IMAGE` | `php:8.4-apache` | PHP + Apache base image (Docker Hub) |
+| `SIMPLESAMLPHP_TARBALL_URL` | *(GitHub Releases)* | Full URL of the SimpleSAMLphp release tarball. Defaults to `https://github.com/simplesamlphp/simplesamlphp/releases/download/v<VERSION>/simplesamlphp-<VERSION>-full.tar.gz` |
+| `COMPOSER_PACKAGIST_URL` | *(packagist.org)* | Composer repository URL to use instead of `packagist.org`. Set to your Artifactory Composer remote-repository URL to cache PHP packages locally. |
+
+#### Example – Artifactory
+
+```bash
+docker build \
+  --build-arg COMPOSER_IMAGE=artifactory.example.com/docker/composer:2 \
+  --build-arg PHP_IMAGE=artifactory.example.com/docker/php:8.4-apache \
+  --build-arg SIMPLESAMLPHP_TARBALL_URL=https://artifactory.example.com/generic-remote/simplesamlphp/simplesamlphp-2.5.0-full.tar.gz \
+  --build-arg COMPOSER_PACKAGIST_URL=https://artifactory.example.com/api/composer/packagist \
+  -t simplesamlphp .
+```
+
+When using **Docker Compose**, set the same variables in a `.env` file next
+to `docker-compose.yml`:
+
+```bash
+COMPOSER_IMAGE=artifactory.example.com/docker/composer:2
+PHP_IMAGE=artifactory.example.com/docker/php:8.4-apache
+SIMPLESAMLPHP_TARBALL_URL=https://artifactory.example.com/generic-remote/simplesamlphp/simplesamlphp-2.5.0-full.tar.gz
+COMPOSER_PACKAGIST_URL=https://artifactory.example.com/api/composer/packagist
+MEMCACHED_IMAGE=artifactory.example.com/docker/memcached:alpine
+```
+
+Then run:
+
+```bash
+docker compose up --build
+```
+
+> **Kubernetes:** The `k8s/memcached.yaml` and `k8s/metarefresh-cronjob.yaml`
+> manifests contain inline comments indicating where to replace the image
+> references with your corporate registry equivalents.
+
 ---
 
 ## Directory layout
