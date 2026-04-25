@@ -80,12 +80,20 @@ $config = [
 
     /*
      * Modules enabled by default.
+     * 'customtheme' provides the branded UI theme (theme.use below).
      */
     'module.enable' => [
-        'core'  => true,
-        'admin' => true,
-        'saml'  => true,
+        'core'        => true,
+        'admin'       => true,
+        'saml'        => true,
+        'customtheme' => true,
     ],
+
+    /*
+     * Custom theme – applies the navy/blue design system to all SSP pages.
+     * The module lives at /var/simplesamlphp/modules/customtheme/.
+     */
+    'theme.use' => 'customtheme:ssp',
 
     /*
      * Session configuration.
@@ -144,5 +152,4 @@ $config = [
 
     'language.default'   => 'en',
     'language.available' => ['en'],
-    'theme.use'          => 'default',
 ];

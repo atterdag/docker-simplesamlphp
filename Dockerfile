@@ -96,6 +96,11 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY www/ /var/www/html/
 
 # ---------------------------------------------------------------------------
+# Copy custom SimpleSAMLphp theme module
+# ---------------------------------------------------------------------------
+COPY modules/customtheme/ /var/simplesamlphp/modules/customtheme/
+
+# ---------------------------------------------------------------------------
 # Apache site configuration
 # ---------------------------------------------------------------------------
 RUN a2dissite 000-default

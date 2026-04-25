@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="{{ currentLanguage }}" dir="{{ isRTL ? 'rtl' : 'ltr' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <title>{{ pagetitle }}</title>
+    {# Default SSP stylesheet – includes Pure CSS, Font Awesome, and base SSP rules #}
+    <link rel="stylesheet" href="{{ asset('css/stylesheet.css') }}">
+    {# Custom theme CSS on top – applies our navy/blue design system #}
+    <link rel="stylesheet" href="{{ asset('css/theme.css', 'customtheme') }}">
+    <link rel="icon" href="{{ asset('icons/favicon.ico') }}">
+    <meta name="robots" content="noindex, nofollow">
+    {{ include('_head.twig', ignore_missing = true) }}
+    {% block preload %}{% endblock %}
+  </head>
+  <body id="{{ templateId }}">
+    <div id="layout">
+      {% block header %}{% include "_header.twig" %}{% endblock %}
+      <main>
+        <div id="content">
+          <div class="wrap">
+            {% block contentwrapper %}{% block content %}{% endblock %}{% endblock contentwrapper %}
+          </div>
+        </div>
+        <div id="push"></div>
+      </main>
+    </div>
+    <div id="foot">
+      {% block footer %}{% include "_footer.twig" %}{% endblock %}
+    </div>
+    <script src="{{ asset('js/bundle.js') }}"></script>
+    {% block postload %}{% endblock %}
+  </body>
+</html>
