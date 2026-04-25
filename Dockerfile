@@ -1,5 +1,5 @@
 FROM composer:2 AS composer
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 LABEL org.opencontainers.image.title="docker-simplesamlphp" \
       org.opencontainers.image.description="SimpleSAMLphp running on Apache with PHP" \
