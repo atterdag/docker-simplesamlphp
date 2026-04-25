@@ -42,6 +42,7 @@ RUN pecl install memcached \
 # ---------------------------------------------------------------------------
 RUN a2enmod \
         headers \
+        http2 \
         rewrite \
         ssl \
         socache_shmcb \
