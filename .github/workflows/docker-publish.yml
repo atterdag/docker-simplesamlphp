@@ -6,36 +6,27 @@ on:
       - main
 
 env:
-  IMAGE: gcr.io/${{ vars.GCP_PROJECT_ID }}/docker-simplesamlphp
+  IMAGE: ghcr.io/${{ github.repository }}
 
 permissions:
   contents: read
-  id-token: write   # required for Workload Identity Federation
+  packages: write   # required to push to GitHub Container Registry
 
 jobs:
   build-and-push:
-    name: Build and push to GCR
+    name: Build and push to GHCR
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.2
 
-      # Authenticate to Google Cloud using Workload Identity Federation.
-      # Required repository variables / secrets:
-      #   vars.GCP_PROJECT_ID          – GCP project that owns the GCR registry
-      #   vars.GCP_WORKLOAD_IDENTITY_PROVIDER – full WIF provider resource name
-      #     e.g. projects/123456789/locations/global/workloadIdentityPools/MY-POOL/providers/MY-PROVIDER
-      #   vars.GCP_SERVICE_ACCOUNT     – service account email that has roles/storage.admin
-      #     on the GCS bucket backing GCR (or roles/artifactregistry.writer for AR)
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2.1.8
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3.4.0
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-
-      - name: Configure Docker to use gcloud credentials
-        run: gcloud auth configure-docker gcr.io --quiet
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU (for multi-platform builds)
         uses: docker/setup-qemu-action@v3.6.0
