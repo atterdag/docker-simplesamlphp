@@ -72,15 +72,14 @@ $requestId = (string) ($_SERVER['UNIQUE_ID'] ?? '');
 
 // ---------------------------------------------------------------------------
 // Logout URL
+// Derive the return-to URL from the server-side configured baseurlpath so
+// that the Host header (which is client-controlled) is never trusted.
 // ---------------------------------------------------------------------------
-$logoutUrl = htmlspecialchars(
-    $as->getLogoutURL(
-        (isset($_SERVER['HTTPS']) ? 'https' : 'http')
-        . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/'
-    ),
-    ENT_QUOTES,
-    'UTF-8'
-);
+$_sspConfig  = \SimpleSAML\Configuration::getInstance();
+$_baseUrl    = $_sspConfig->getString('baseurlpath', 'https://localhost/simplesaml/');
+$_parsed     = parse_url($_baseUrl);
+$_siteRoot   = ($_parsed['scheme'] ?? 'https') . '://' . ($_parsed['host'] ?? 'localhost') . '/';
+$logoutUrl   = htmlspecialchars($as->getLogoutURL($_siteRoot), ENT_QUOTES, 'UTF-8');
 
 // ---------------------------------------------------------------------------
 // Helper: safely HTML-encode a value for output; return an italic
@@ -191,9 +190,10 @@ ksort($attributes);
                 </thead>
                 <tbody>
                     <?php foreach ($attributes as $name => $values): ?>
+                    <?php $valueStr = implode(', ', array_map('strval', (array) $values)); ?>
                     <tr>
                         <td class="attr-name"><?= htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= $display(implode(', ', array_map('strval', (array) $values))) ?></td>
+                        <td><?= $display($valueStr) ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
