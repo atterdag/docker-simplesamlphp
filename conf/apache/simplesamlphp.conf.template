@@ -82,16 +82,14 @@ LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" rid=%{UN
     </Directory>
 
     # ---------------------------------------------------------------------------
-    # HTTP/2 support
-    # ---------------------------------------------------------------------------
-    Protocols h2 http/1.1
-
-    # ---------------------------------------------------------------------------
     # TLS configuration
     # ---------------------------------------------------------------------------
     SSLEngine             on
     SSLCertificateFile    ${SSL_CERTIFICATE_FILE}
     SSLCertificateKeyFile ${SSL_PRIVATE_KEY_FILE}
+
+    # HTTP/2 support (requires SSLEngine on)
+    Protocols             h2 http/1.1
 
     # Modern TLS settings
     SSLProtocol           all -SSLv3 -TLSv1 -TLSv1.1
