@@ -25,6 +25,14 @@ Define SSL_CERTIFICATE_FILE ${SSL_CERTIFICATE_FILE}
 Define SSL_PRIVATE_KEY_FILE ${SSL_PRIVATE_KEY_FILE}
 
 # ---------------------------------------------------------------------------
+# Correlation / request ID log format
+# Includes the Apache mod_unique_id value (UNIQUE_ID) so every access-log
+# entry can be correlated with the X-Request-ID response header seen by the
+# client.
+# ---------------------------------------------------------------------------
+LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" rid=%{UNIQUE_ID}e" combined_reqid
+
+# ---------------------------------------------------------------------------
 # HTTP → HTTPS redirect
 # ---------------------------------------------------------------------------
 <VirtualHost *:80>
@@ -93,8 +101,24 @@ Define SSL_PRIVATE_KEY_FILE ${SSL_PRIVATE_KEY_FILE}
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
     # ---------------------------------------------------------------------------
+    # Correlation / request ID
+    # mod_unique_id generates a unique token per request and stores it in the
+    # UNIQUE_ID environment variable.  We forward it as X-Request-ID so clients
+    # (browsers, curl, etc.) can quote it when reporting problems, and it is
+    # also written into the access log (see combined_reqid format above).
+    # ---------------------------------------------------------------------------
+    Header always set X-Request-ID "%{UNIQUE_ID}e"
+
+    # ---------------------------------------------------------------------------
+    # Custom error documents
+    # ---------------------------------------------------------------------------
+    ErrorDocument 403 /errors/403.html
+    ErrorDocument 404 /errors/404.html
+    ErrorDocument 500 /errors/500.html
+
+    # ---------------------------------------------------------------------------
     # Logging
     # ---------------------------------------------------------------------------
     ErrorLog  ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
+    CustomLog ${APACHE_LOG_DIR}/access.log combined_reqid
 </VirtualHost>

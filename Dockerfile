@@ -44,7 +44,8 @@ RUN a2enmod \
         headers \
         rewrite \
         ssl \
-        socache_shmcb
+        socache_shmcb \
+        unique_id
 
 # ---------------------------------------------------------------------------
 # Download and install SimpleSAMLphp
@@ -88,6 +89,11 @@ COPY metadata/saml20-idp-remote.php \
 # ---------------------------------------------------------------------------
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# ---------------------------------------------------------------------------
+# Copy web application files (secure example page, error pages, stylesheet)
+# ---------------------------------------------------------------------------
+COPY www/ /var/www/html/
 
 # ---------------------------------------------------------------------------
 # Apache site configuration

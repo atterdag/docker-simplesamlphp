@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 Internal Server Error – SimpleSAMLphp</title>
+    <style>
+        /* Inline subset of style.css – kept self-contained for reliability */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --clr-primary:    #1e3a5f;
+            --clr-primary-md: #2563a8;
+            --clr-accent:     #3b82f6;
+            --clr-bg:         #f1f5f9;
+            --clr-surface:    #ffffff;
+            --clr-border:     #cbd5e1;
+            --clr-text:       #0f172a;
+            --clr-muted:      #64748b;
+            --clr-info-bg:    #dbeafe;
+            --clr-info-fg:    #1e40af;
+            --clr-warn-bg:    #fef3c7;
+            --clr-warn-fg:    #92400e;
+            --radius:         0.5rem;
+            --shadow:         0 2px 8px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.06);
+            --font:           'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        html { font-size: 16px; }
+        body {
+            font-family: var(--font);
+            background: var(--clr-bg);
+            color: var(--clr-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .site-header {
+            background: var(--clr-primary);
+            color: #fff;
+            padding: 0.875rem 2rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,.20);
+        }
+        .brand {
+            font-size: 1.125rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+            text-decoration: none;
+            color: #fff;
+        }
+        .brand span { font-weight: 300; opacity: .85; }
+        .site-main {
+            flex: 1;
+            padding: 2.5rem 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 2.5rem 2.25rem;
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: .5rem;
+        }
+        .error-title { font-size: 1.5rem; font-weight: 700; margin-bottom: .75rem; }
+        .error-desc { color: var(--clr-muted); margin-bottom: 1.75rem; }
+        .actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-block;
+            padding: .55rem 1.5rem;
+            background: var(--clr-primary-md);
+            color: #fff;
+            text-decoration: none;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: .875rem;
+            transition: background .15s;
+        }
+        .btn:hover { background: var(--clr-primary); }
+        .hint {
+            margin-top: 1.75rem;
+            padding: .75rem 1rem;
+            background: var(--clr-warn-bg);
+            border: 1px solid #fcd34d;
+            border-radius: var(--radius);
+            font-size: .8rem;
+            color: var(--clr-warn-fg);
+            text-align: left;
+        }
+        .hint strong { font-weight: 700; }
+        .site-footer {
+            background: var(--clr-surface);
+            border-top: 1px solid var(--clr-border);
+            padding: .875rem 2rem;
+            text-align: center;
+            font-size: .78rem;
+            color: var(--clr-muted);
+        }
+        .site-footer a { color: var(--clr-primary-md); }
+        @media (max-width: 520px) {
+            .site-header { padding: .75rem 1rem; }
+            .card { padding: 1.5rem 1rem; }
+            .error-code { font-size: 4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a class="brand" href="/"><span>Simple</span>SAMLphp</a>
+</header>
+
+<main class="site-main">
+    <div class="card">
+        <div class="error-code">500</div>
+        <h1 class="error-title">Internal Server Error</h1>
+        <p class="error-desc">
+            Something went wrong on our end. The server encountered an
+            unexpected condition that prevented it from fulfilling your request.
+        </p>
+        <div class="actions">
+            <a class="btn" href="/">Go to Home</a>
+        </div>
+        <div class="hint">
+            <strong>Action required:</strong> Please note the
+            <code>X-Request-ID</code> value from the response headers and
+            share it with your system administrator so the error can be
+            located in the server logs.
+        </div>
+    </div>
+</main>
+
+<footer class="site-footer">
+    &copy; SimpleSAMLphp Demo &mdash;
+    <a href="https://simplesamlphp.org/" rel="noopener noreferrer">SimpleSAMLphp</a>
+</footer>
+
+</body>
+</html>
