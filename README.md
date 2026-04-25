@@ -66,6 +66,9 @@ custom Apache snippets.
 | `SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL` | `webmaster@${DOMAIN_NAME}` | Contact e-mail |
 | `SIMPLESAMLPHP_TIMEZONE` | `UTC` | PHP timezone |
 | `SIMPLESAMLPHP_LOGGING_HANDLER` | `errorlog` | `errorlog`, `syslog`, or `file` |
+| `SIMPLESAMLPHP_STORE_TYPE` | `phpsession` | Session store: `phpsession`, `memcache`, or `sql` |
+| `MEMCACHE_SERVER_HOST` | `memcached` | Memcached hostname (used when `SIMPLESAMLPHP_STORE_TYPE=memcache`) |
+| `MEMCACHE_SERVER_PORT` | `11211` | Memcached port |
 
 ---
 
@@ -191,6 +194,97 @@ containers:
 
 ---
 
+## Kubernetes deployment
+
+The `k8s/` directory contains ready-to-use manifests for deploying the full
+stack (SimpleSAMLphp + Memcached) on Kubernetes.
+
+### File overview
+
+| File | Contents |
+|------|----------|
+| `k8s/namespace.yaml` | `simplesamlphp` Namespace |
+| `k8s/memcached.yaml` | Memcached Deployment + ClusterIP Service |
+| `k8s/simplesamlphp.yaml` | ConfigMap, Secrets, Deployment, and LoadBalancer Service |
+
+### Quick start
+
+**1. Build and push the image**
+
+```bash
+docker build -t ghcr.io/<ORG>/docker-simplesamlphp:latest .
+docker push ghcr.io/<ORG>/docker-simplesamlphp:latest
+```
+
+**2. Create the SP SAML signing credentials**
+
+```bash
+openssl req -newkey rsa:2048 -new -x509 -days 3652 -nodes \
+  -out sp.crt -keyout sp.key \
+  -subj "/CN=simplesamlphp.example.org"    # <CHANGE_ME> – use your actual FQDN
+
+kubectl apply -f k8s/namespace.yaml
+
+kubectl create secret generic simplesamlphp-sp-cert \
+  --namespace simplesamlphp \
+  --from-file=sp.key=./sp.key \
+  --from-file=sp.crt=./sp.crt
+```
+
+**3. Create the Apache TLS certificate and key**
+
+```bash
+kubectl create secret tls simplesamlphp-tls \
+  --namespace simplesamlphp \
+  --cert=./tls.crt \
+  --key=./tls.key
+```
+
+**4. Edit `k8s/simplesamlphp.yaml`**
+
+Replace every `<CHANGE_ME>` placeholder:
+
+| Field | Description |
+|-------|-------------|
+| `DOMAIN_NAME` in ConfigMap | Your base domain |
+| `SERVER_NAME` in ConfigMap | Short hostname (e.g. `simplesamlphp`) |
+| `SIMPLESAMLPHP_ADMIN_PASSWORD` in Secret | A strong admin password |
+| `SIMPLESAMLPHP_SECRET_SALT` in Secret | A stable random string (`openssl rand -hex 32`) |
+| `image:` in Deployment | Your registry/image reference |
+
+**5. Apply all manifests**
+
+```bash
+kubectl apply -f k8s/
+```
+
+**6. Check status**
+
+```bash
+kubectl -n simplesamlphp get pods,svc
+```
+
+SimpleSAMLphp will be available at the external IP assigned by the
+LoadBalancer: `https://<EXTERNAL-IP>/simplesaml/`.
+
+### Session store
+
+`SIMPLESAMLPHP_STORE_TYPE` is set to `memcache` in
+`k8s/simplesamlphp.yaml`.  Sessions are stored in the Memcached pod and
+survive SimpleSAMLphp pod restarts as long as Memcached is running.  Set it
+to `phpsession` to revert to single-node PHP sessions.
+
+> **Important:** supply a fixed `SIMPLESAMLPHP_SECRET_SALT` value so that
+> session tokens remain valid across SimpleSAMLphp pod restarts.
+
+### Injecting IdP metadata
+
+Uncomment the `simplesamlphp-idp-metadata` ConfigMap and the matching
+`volumeMount` / `volume` entries in `k8s/simplesamlphp.yaml`, then populate
+the ConfigMap with your IdP's `saml20-idp-remote.php` content.
+
+---
+
 ## Building
 
 ```bash
@@ -209,6 +303,10 @@ docker build --build-arg SIMPLESAMLPHP_VERSION=2.5.0 -t simplesamlphp .
 .
 ├── Dockerfile
 ├── docker-compose.yml
+├── k8s/
+│   ├── namespace.yaml               # simplesamlphp Namespace
+│   ├── memcached.yaml               # Memcached Deployment + Service
+│   └── simplesamlphp.yaml           # ConfigMap, Secrets, Deployment, Service
 ├── conf/
 │   ├── apache/
 │   │   └── simplesamlphp.conf.template   # Apache VirtualHost template

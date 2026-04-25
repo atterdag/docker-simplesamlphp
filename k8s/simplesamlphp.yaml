@@ -1,0 +1,302 @@
+---
+# k8s/simplesamlphp.yaml
+#
+# Full SimpleSAMLphp stack:
+#   - ConfigMap   – non-sensitive environment variables
+#   - Secret      – admin password and secret salt
+#   - Secret      – SP SAML signing key and certificate
+#   - Secret      – Apache TLS certificate and key
+#   - ConfigMap   – IdP metadata (optional; comment in the volumeMount below
+#                   to activate)
+#   - Deployment  – SimpleSAMLphp on Apache
+#   - Service     – exposes HTTP (80) and HTTPS (443)
+#
+# Quick start:
+#   1. Replace every placeholder marked <CHANGE_ME> below.
+#   2. kubectl apply -f k8s/namespace.yaml
+#      kubectl apply -f k8s/
+#
+# The image is built from this repository. Push it to a registry first, e.g.:
+#   docker build -t ghcr.io/<ORG>/docker-simplesamlphp:latest .
+#   docker push ghcr.io/<ORG>/docker-simplesamlphp:latest
+
+# ---------------------------------------------------------------------------
+# ConfigMap – non-sensitive runtime configuration
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: simplesamlphp-config
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: config
+data:
+  DOMAIN_NAME: "se.lemche.net"          # <CHANGE_ME> – your domain
+  SERVER_NAME: "simplesamlphp"          # <CHANGE_ME> – short hostname
+  SIMPLESAMLPHP_SP_PRIVATEKEY:  "sp.key"
+  SIMPLESAMLPHP_SP_CERTIFICATE: "sp.crt"
+  SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED: "true"
+  SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED:    "true"
+  SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME:  "Administrator"  # <CHANGE_ME>
+  # Leave empty to use the entrypoint default (webmaster@<DOMAIN_NAME>)
+  SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL: ""               # <CHANGE_ME>
+  SIMPLESAMLPHP_TIMEZONE:        "UTC"
+  SIMPLESAMLPHP_LOGGING_HANDLER: "errorlog"
+  SIMPLESAMLPHP_STORE_TYPE:      "memcache"
+  MEMCACHE_SERVER_HOST:          "memcached"
+  MEMCACHE_SERVER_PORT:          "11211"
+  # Override the env vars below if you want a different SSL certificate path.
+  SSL_CERTIFICATE_FILE: "/etc/ssl/simplesamlphp/tls.crt"
+  SSL_PRIVATE_KEY_FILE: "/etc/ssl/simplesamlphp/tls.key"
+
+---
+# ---------------------------------------------------------------------------
+# Secret – admin credentials
+#
+# Generate a strong password and a stable salt, e.g.:
+#   openssl rand -hex 32   (use once for SIMPLESAMLPHP_SECRET_SALT)
+#
+# WARNING: committing real secrets to source control is a security risk.
+#          Consider using Sealed Secrets, External Secrets Operator, or
+#          a Vault integration instead.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: simplesamlphp-admin
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: config
+type: Opaque
+stringData:
+  SIMPLESAMLPHP_ADMIN_PASSWORD: "<CHANGE_ME>"    # Replace with a strong password before applying
+  # Provide a stable salt so sessions survive pod restarts.
+  # If left empty the entrypoint auto-generates a new one on every restart,
+  # which will invalidate all active sessions.
+  # Generate one with: openssl rand -hex 32
+  SIMPLESAMLPHP_SECRET_SALT: "<CHANGE_ME>"        # Replace with output of: openssl rand -hex 32
+
+---
+# ---------------------------------------------------------------------------
+# Secret – SP SAML signing key and certificate
+#
+# Generate self-signed credentials or supply your own:
+#   openssl req -newkey rsa:2048 -new -x509 -days 3652 -nodes \
+#     -out sp.crt -keyout sp.key \
+#     -subj "/CN=simplesamlphp.se.lemche.net"
+#
+# Then create the secret directly (avoids base64 errors):
+#   kubectl create secret generic simplesamlphp-sp-cert \
+#     --namespace simplesamlphp \
+#     --from-file=sp.key=./sp.key \
+#     --from-file=sp.crt=./sp.crt
+#
+# The placeholder values below are just documentation stubs – replace them or
+# use the kubectl command above instead.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: simplesamlphp-sp-cert
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: sp-cert
+type: Opaque
+data:
+  sp.key: ""   # <CHANGE_ME> – base64-encoded SP private key
+  sp.crt: ""   # <CHANGE_ME> – base64-encoded SP certificate
+
+---
+# ---------------------------------------------------------------------------
+# Secret – Apache TLS certificate and key
+#
+# Create directly from PEM files:
+#   kubectl create secret tls simplesamlphp-tls \
+#     --namespace simplesamlphp \
+#     --cert=./tls.crt \
+#     --key=./tls.key
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: simplesamlphp-tls
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: tls
+type: kubernetes.io/tls
+data:
+  tls.crt: ""   # <CHANGE_ME> – base64-encoded TLS certificate
+  tls.key: ""   # <CHANGE_ME> – base64-encoded TLS private key
+
+---
+# ---------------------------------------------------------------------------
+# ConfigMap – IdP metadata (optional)
+#
+# Uncomment and populate this ConfigMap, then uncomment the idp-metadata
+# volumeMount and volume entries in the Deployment below to inject IdP
+# metadata without rebuilding the image.
+# ---------------------------------------------------------------------------
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: simplesamlphp-idp-metadata
+#   namespace: simplesamlphp
+# data:
+#   saml20-idp-remote.php: |
+#     <?php
+#     $metadata['https://idp.example.org/'] = [
+#         'SingleSignOnService' => 'https://idp.example.org/saml/SSO',
+#         'certData' => '...base64...',
+#     ];
+
+---
+# ---------------------------------------------------------------------------
+# Deployment
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simplesamlphp
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: app
+spec:
+  # Replicas can be increased safely because sessions are stored in Memcached
+  # rather than in-process PHP sessions.  Set replicas > 1 for high availability.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: simplesamlphp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: simplesamlphp
+        app.kubernetes.io/component: app
+    spec:
+      # The entrypoint runs as root to chown files before dropping to www-data.
+      # Do not set runAsNonRoot or a non-zero runAsUser here.
+      containers:
+        - name: simplesamlphp
+          # <CHANGE_ME> – replace with your registry/image:tag after building
+          # and pushing the image.  Example:
+          #   docker build -t ghcr.io/<ORG>/docker-simplesamlphp:2.5.0 .
+          #   docker push ghcr.io/<ORG>/docker-simplesamlphp:2.5.0
+          image: ghcr.io/atterdag/docker-simplesamlphp:latest
+
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+
+          # Load non-sensitive variables from the ConfigMap
+          envFrom:
+            - configMapRef:
+                name: simplesamlphp-config
+
+          # Sensitive variables from Secrets
+          env:
+            - name: SIMPLESAMLPHP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: simplesamlphp-admin
+                  key: SIMPLESAMLPHP_ADMIN_PASSWORD
+            - name: SIMPLESAMLPHP_SECRET_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: simplesamlphp-admin
+                  key: SIMPLESAMLPHP_SECRET_SALT
+
+          volumeMounts:
+            # SP SAML signing key and certificate
+            - name: sp-cert
+              mountPath: /var/simplesamlphp/cert
+              readOnly: true
+            # Apache TLS certificate and key
+            - name: tls-secret
+              mountPath: /etc/ssl/simplesamlphp
+              readOnly: true
+            # IdP metadata – uncomment to inject a ConfigMap-supplied file
+            # - name: idp-metadata
+            #   mountPath: /var/simplesamlphp/metadata/saml20-idp-remote.php
+            #   subPath: saml20-idp-remote.php
+            #   readOnly: true
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          livenessProbe:
+            httpGet:
+              path: /simplesaml/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /simplesaml/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+      volumes:
+        - name: sp-cert
+          secret:
+            secretName: simplesamlphp-sp-cert
+        - name: tls-secret
+          secret:
+            secretName: simplesamlphp-tls
+        # IdP metadata ConfigMap – uncomment together with the volumeMount above
+        # - name: idp-metadata
+        #   configMap:
+        #     name: simplesamlphp-idp-metadata
+
+---
+# ---------------------------------------------------------------------------
+# Service
+#
+# The default type is LoadBalancer so the stack is directly reachable on an
+# IP provided by the cloud provider or a bare-metal LoadBalancer (e.g.
+# MetalLB).  Change to ClusterIP and add an Ingress if you prefer to
+# terminate TLS at the cluster edge instead.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: simplesamlphp
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: app
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: simplesamlphp
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP

@@ -135,6 +135,7 @@ $config = [
      */
     'memcache_store.servers' => [
         [
+            // port is an unquoted integer as required by SimpleSAMLphp
             ['hostname' => '${MEMCACHE_SERVER_HOST}', 'port' => ${MEMCACHE_SERVER_PORT}],
         ],
     ],
