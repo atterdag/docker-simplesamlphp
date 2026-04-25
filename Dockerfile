@@ -18,8 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         gettext-base \
         libicu-dev \
+        libmemcached-dev \
         libzip-dev \
         unzip \
+        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
@@ -28,6 +30,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN docker-php-ext-install \
         intl \
         zip
+
+# ---------------------------------------------------------------------------
+# PHP memcached extension (for SimpleSAMLphp memcache session store)
+# ---------------------------------------------------------------------------
+RUN pecl install memcached \
+    && docker-php-ext-enable memcached
 
 # ---------------------------------------------------------------------------
 # Apache modules
@@ -115,8 +123,14 @@ ENV SIMPLESAMLPHP_ADMIN_PASSWORD=admin \
     SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME=Administrator
 
 # SimpleSAMLphp – runtime
+# SIMPLESAMLPHP_STORE_TYPE defaults to 'phpsession' here so the image works
+# standalone without a memcached service. docker-compose.yml overrides this to
+# 'memcache' when the bundled memcached service is available.
 ENV SIMPLESAMLPHP_TIMEZONE=UTC \
-    SIMPLESAMLPHP_LOGGING_HANDLER=errorlog
+    SIMPLESAMLPHP_LOGGING_HANDLER=errorlog \
+    SIMPLESAMLPHP_STORE_TYPE=phpsession \
+    MEMCACHE_SERVER_HOST=memcached \
+    MEMCACHE_SERVER_PORT=11211
 
 # ---------------------------------------------------------------------------
 # Volumes

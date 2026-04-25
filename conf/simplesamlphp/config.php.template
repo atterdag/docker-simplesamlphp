@@ -12,6 +12,9 @@
  *   SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL  – contact e-mail
  *   SIMPLESAMLPHP_TIMEZONE                 – PHP/display timezone (e.g. UTC)
  *   SIMPLESAMLPHP_LOGGING_HANDLER          – logging handler: errorlog|syslog|file
+ *   SIMPLESAMLPHP_STORE_TYPE               – session store: phpsession|memcache|sql
+ *   MEMCACHE_SERVER_HOST                   – memcached hostname (default: memcached)
+ *   MEMCACHE_SERVER_PORT                   – memcached port (default: 11211)
  */
 
 $config = [
@@ -113,10 +116,31 @@ $config = [
     'metadata.sign.algorithm' => 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
 
     /*
-     * Data store – use the PHP session store for simplicity.
-     * For production consider 'memcache' or 'sql'.
+     * Data store – controls where SimpleSAMLphp stores session data.
+     * 'phpsession' – PHP built-in sessions (default, single-node only).
+     * 'memcache'   – Memcached (requires the memcached PHP extension and a
+     *                running memcached server; see memcache_store.servers below).
+     * 'sql'        – PDO-backed SQL store.
+     *
+     * Set via SIMPLESAMLPHP_STORE_TYPE (default: phpsession).
      */
-    'store.type' => 'phpsession',
+    'store.type' => '${SIMPLESAMLPHP_STORE_TYPE}',
+
+    /*
+     * Memcache store configuration.
+     * Used when store.type is 'memcache'.
+     * Each inner array is a pool of servers that mirror each other.
+     * Set MEMCACHE_SERVER_HOST / MEMCACHE_SERVER_PORT to point at your
+     * memcached instance (defaults: memcached / 11211).
+     */
+    'memcache_store.servers' => [
+        [
+            // port is an unquoted integer as required by SimpleSAMLphp
+            ['hostname' => '${MEMCACHE_SERVER_HOST}', 'port' => ${MEMCACHE_SERVER_PORT}],
+        ],
+    ],
+    'memcache_store.prefix'  => '',
+    'memcache_store.expires' => 36 * (60 * 60),  // 36 hours
 
     'language.default'   => 'en',
     'language.available' => ['en'],

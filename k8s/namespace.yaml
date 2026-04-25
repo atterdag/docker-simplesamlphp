@@ -1,0 +1,16 @@
+---
+# k8s/namespace.yaml
+#
+# Dedicated namespace for the SimpleSAMLphp stack.
+# Apply first:
+#   kubectl apply -f k8s/namespace.yaml
+#
+# Then apply the rest:
+#   kubectl apply -f k8s/
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
