@@ -152,7 +152,7 @@ $config = [
      *                running memcached server; see memcache_store.servers below).
      * 'sql'        – PDO-backed SQL store.
      *
-     * Set via SIMPLESAMLPHP_STORE_TYPE (default: phpsession).
+     * Set via SIMPLESAMLPHP_STORE_TYPE (default: memcache).
      */
     'store.type' => '${SIMPLESAMLPHP_STORE_TYPE}',
 

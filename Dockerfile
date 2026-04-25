@@ -170,13 +170,14 @@ ENV SIMPLESAMLPHP_ADMIN_PASSWORD=admin \
     SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME=Administrator
 
 # SimpleSAMLphp – runtime
-# SIMPLESAMLPHP_STORE_TYPE defaults to 'phpsession' here so the image works
-# standalone without a memcached service. docker-compose.yml overrides this to
-# 'memcache' when the bundled memcached service is available.
+# SIMPLESAMLPHP_STORE_TYPE defaults to 'memcache' so that sessions are shared
+# across replicas.  Set MEMCACHE_SERVER_HOST / MEMCACHE_SERVER_PORT to point at
+# your memcached instance, or override SIMPLESAMLPHP_STORE_TYPE to 'phpsession'
+# for single-node deployments that have no memcached service available.
 ENV SIMPLESAMLPHP_TIMEZONE=UTC \
     SIMPLESAMLPHP_LOGGING_HANDLER=errorlog \
     SIMPLESAMLPHP_LOG_DIR=/var/simplesamlphp/log \
-    SIMPLESAMLPHP_STORE_TYPE=phpsession \
+    SIMPLESAMLPHP_STORE_TYPE=memcache \
     MEMCACHE_SERVER_HOST=memcached \
     MEMCACHE_SERVER_PORT=11211
 

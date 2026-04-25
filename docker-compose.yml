@@ -83,9 +83,8 @@ services:
 
       # -----------------------------------------------------------------------
       # Session store – use memcache backed by the memcached service above.
-      # The image default is 'phpsession' (works without a memcached server);
-      # docker-compose overrides it to 'memcache' because the memcached service
-      # is available in this stack. Set to 'phpsession' to revert.
+      # 'memcache' is the image default; set to 'phpsession' for single-node
+      # deployments that have no memcached service available.
       # -----------------------------------------------------------------------
       SIMPLESAMLPHP_STORE_TYPE: ${SIMPLESAMLPHP_STORE_TYPE:-memcache}
       MEMCACHE_SERVER_HOST:     ${MEMCACHE_SERVER_HOST:-memcached}
