@@ -1,0 +1,408 @@
+/* ==========================================================
+   SimpleSAMLphp custom theme – "customtheme:ssp"
+   Loaded on top of the default SSP stylesheet so Pure CSS
+   form utilities remain available.  All colour/spacing values
+   match www/css/style.css exactly.
+   ========================================================== */
+
+/* ------------------------------------------------------------------
+   Design tokens (same set as www/css/style.css)
+   ------------------------------------------------------------------ */
+:root {
+    --clr-primary:     #1e3a5f;
+    --clr-primary-md:  #2563a8;
+    --clr-accent:      #3b82f6;
+    --clr-bg:          #f1f5f9;
+    --clr-surface:     #ffffff;
+    --clr-border:      #cbd5e1;
+    --clr-text:        #0f172a;
+    --clr-muted:       #64748b;
+    --clr-success-bg:  #d1fae5;
+    --clr-success-fg:  #065f46;
+    --clr-success-brd: #a7f3d0;
+    --clr-info-bg:     #dbeafe;
+    --clr-info-fg:     #1e40af;
+    --clr-info-brd:    #93c5fd;
+    --clr-warn-bg:     #fef3c7;
+    --clr-warn-fg:     #92400e;
+    --clr-warn-brd:    #fcd34d;
+    --clr-danger-bg:   #fee2e2;
+    --clr-danger-fg:   #991b1b;
+    --clr-danger-brd:  #fca5a5;
+    --radius:          0.5rem;
+    --shadow-sm:       0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow:          0 2px 8px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --font:            'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont,
+                       'Helvetica Neue', Arial, sans-serif;
+    --font-mono:       'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+/* ------------------------------------------------------------------
+   Reset / base
+   ------------------------------------------------------------------ */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: var(--font);
+    background: var(--clr-bg);
+    color: var(--clr-text);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ------------------------------------------------------------------
+   SSP layout structure
+   #layout wraps the whole page; main holds #content; #foot is below
+   ------------------------------------------------------------------ */
+#layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#content {
+    flex: 1;
+    padding: 2.5rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+#content .wrap {
+    width: 100%;
+    max-width: 720px;
+    /* reset SSP's centering margin so flexbox centres it */
+    margin: 0;
+}
+
+#push {
+    display: none;
+}
+
+/* ------------------------------------------------------------------
+   Header  (#header set by _header.twig override)
+   ------------------------------------------------------------------ */
+#header {
+    background: var(--clr-primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20);
+    /* reset any SSP height/padding defaults */
+    padding: 0;
+    height: auto;
+}
+
+.ssp-header-inner {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 2rem;
+    gap: 1rem;
+}
+
+.ssp-brand {
+    font-family: var(--font);
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    color: #fff;
+}
+
+.ssp-brand span {
+    font-weight: 300;
+    opacity: 0.85;
+}
+
+.ssp-lang-bar {
+    margin-left: auto;
+}
+
+.ssp-lang-select {
+    font-family: var(--font);
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.30);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.ssp-lang-select option {
+    background: var(--clr-primary);
+    color: #fff;
+}
+
+/* ------------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------------ */
+#foot {
+    background: var(--clr-surface);
+    border-top: 1px solid var(--clr-border);
+}
+
+.ssp-site-footer {
+    padding: 0.875rem 2rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--clr-muted);
+}
+
+.ssp-site-footer a {
+    color: var(--clr-primary-md);
+    text-decoration: none;
+}
+
+.ssp-site-footer a:hover {
+    text-decoration: underline;
+}
+
+/* ------------------------------------------------------------------
+   Card  (.ssp-card added by our core/base.twig override)
+   ------------------------------------------------------------------ */
+.ssp-card {
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 2rem 2.25rem;
+    width: 100%;
+}
+
+/* ------------------------------------------------------------------
+   Typography inside the card
+   ------------------------------------------------------------------ */
+.ssp-card h1,
+.ssp-card h2 {
+    color: var(--clr-primary);
+    font-weight: 700;
+    line-height: 1.3;
+    margin-top: 0;
+}
+
+.ssp-card h1 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--clr-border);
+}
+
+.ssp-card h2 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.ssp-card p {
+    margin: 0 0 1rem;
+    color: var(--clr-text);
+}
+
+.ssp-card ul,
+.ssp-card ol {
+    margin: 0 0 1rem 1.5rem;
+}
+
+.ssp-card a {
+    color: var(--clr-primary-md);
+}
+
+/* ------------------------------------------------------------------
+   Message boxes  (SSP uses .message-box, .message-box.error, etc.)
+   ------------------------------------------------------------------ */
+.message-box {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--clr-border);
+    background: #f8fafc;
+    color: var(--clr-text);
+}
+
+.message-box.error,
+.message-box.red {
+    background: var(--clr-danger-bg);
+    color: var(--clr-danger-fg);
+    border-color: var(--clr-danger-brd);
+}
+
+.message-box.warning,
+.message-box.yellow {
+    background: var(--clr-warn-bg);
+    color: var(--clr-warn-fg);
+    border-color: var(--clr-warn-brd);
+}
+
+.message-box.info,
+.message-box.blue {
+    background: var(--clr-info-bg);
+    color: var(--clr-info-fg);
+    border-color: var(--clr-info-brd);
+}
+
+.message-box.success,
+.message-box.green {
+    background: var(--clr-success-bg);
+    color: var(--clr-success-fg);
+    border-color: var(--clr-success-brd);
+}
+
+/* ------------------------------------------------------------------
+   Forms  (extend Pure CSS classes used in SSP templates)
+   ------------------------------------------------------------------ */
+.pure-form input[type="text"],
+.pure-form input[type="password"],
+.pure-form input[type="email"],
+.pure-form select,
+.pure-form textarea {
+    font-family: var(--font);
+    font-size: 0.9rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.75rem;
+    background: var(--clr-surface);
+    color: var(--clr-text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+}
+
+.pure-form input[type="text"]:focus,
+.pure-form input[type="password"]:focus,
+.pure-form input[type="email"]:focus,
+.pure-form select:focus,
+.pure-form textarea:focus {
+    border-color: var(--clr-accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.pure-form label {
+    font-weight: 600;
+    color: var(--clr-primary);
+    font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------------------
+   Buttons  (override Pure CSS and SSP button colours)
+   ------------------------------------------------------------------ */
+.pure-button,
+.pure-button-primary {
+    font-family: var(--font);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    box-shadow: var(--shadow-sm);
+}
+
+.pure-button-red,
+.pure-button.pure-button-red,
+input[type="submit"].pure-button {
+    background: var(--clr-primary-md) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+.pure-button-red:hover,
+.pure-button.pure-button-red:hover {
+    background: var(--clr-primary) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+button[type="submit"],
+input[type="submit"] {
+    background: var(--clr-primary-md);
+    color: #fff;
+    font-family: var(--font);
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: none;
+    padding: 0.55rem 1.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background 0.15s;
+}
+
+button[type="submit"]:hover,
+input[type="submit"]:hover {
+    background: var(--clr-primary);
+}
+
+/* ------------------------------------------------------------------
+   Login form centering helper (SSP adds .center-form)
+   ------------------------------------------------------------------ */
+.center-form {
+    margin-top: 1.25rem;
+}
+
+.login-form-submit {
+    margin-top: 1rem;
+}
+
+/* ------------------------------------------------------------------
+   Code blocks / pre
+   ------------------------------------------------------------------ */
+.code-box,
+pre,
+code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: #f8fafc;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    padding: 0.25rem 0.5rem;
+}
+
+.code-box-content {
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+}
+
+/* ------------------------------------------------------------------
+   Error tracking ID (SSP error.twig)
+   ------------------------------------------------------------------ */
+#trackid {
+    font-family: var(--font-mono);
+    background: var(--clr-info-bg);
+    color: var(--clr-info-fg);
+    border: 1px solid var(--clr-info-brd);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.75rem;
+    display: inline-block;
+}
+
+/* ------------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------------ */
+@media (max-width: 520px) {
+    .ssp-header-inner {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+    }
+
+    .ssp-card {
+        padding: 1.25rem 1rem;
+    }
+
+    #content {
+        padding: 1.5rem 0.5rem;
+    }
+}

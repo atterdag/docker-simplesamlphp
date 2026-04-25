@@ -1,0 +1,11 @@
+{% extends "base.twig" %}
+
+{#
+  Override the core module's base template to replace the jQuery UI
+  portalmenu wrapper with a clean card that matches our design system.
+#}
+{% block contentwrapper %}
+<div class="ssp-card">
+  {{ block('content') }}
+</div>
+{% endblock %}

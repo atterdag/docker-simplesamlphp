@@ -1,0 +1,373 @@
+/* ==========================================================
+   Shared stylesheet – SimpleSAMLphp demo application
+   ========================================================== */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --clr-primary:     #1e3a5f;
+    --clr-primary-md:  #2563a8;
+    --clr-accent:      #3b82f6;
+    --clr-bg:          #f1f5f9;
+    --clr-surface:     #ffffff;
+    --clr-border:      #cbd5e1;
+    --clr-text:        #0f172a;
+    --clr-muted:       #64748b;
+    --clr-success-bg:  #d1fae5;
+    --clr-success-fg:  #065f46;
+    --clr-info-bg:     #dbeafe;
+    --clr-info-fg:     #1e40af;
+    --clr-warn-bg:     #fef3c7;
+    --clr-warn-fg:     #92400e;
+    --clr-danger-bg:   #fee2e2;
+    --clr-danger-fg:   #991b1b;
+    --radius:          0.5rem;
+    --shadow-sm:       0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow:          0 2px 8px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --font:            'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont,
+                       'Helvetica Neue', Arial, sans-serif;
+    --font-mono:       'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: var(--font);
+    background: var(--clr-bg);
+    color: var(--clr-text);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- Header ---- */
+.site-header {
+    background: var(--clr-primary);
+    color: #fff;
+    padding: 0.875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20);
+}
+
+.site-header .brand {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    color: #fff;
+}
+
+.site-header .brand span {
+    font-weight: 300;
+    opacity: 0.85;
+}
+
+.site-header nav {
+    margin-left: auto;
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+.site-header nav a {
+    color: rgba(255, 255, 255, 0.80);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.15s;
+}
+
+.site-header nav a:hover {
+    color: #fff;
+}
+
+.site-header .btn-logout {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    padding: 0.3rem 0.9rem;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.site-header .btn-logout:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* ---- Main ---- */
+.site-main {
+    flex: 1;
+    padding: 2.5rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* ---- Card ---- */
+.card {
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 2rem 2.25rem;
+    width: 100%;
+    max-width: 680px;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--clr-primary);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--clr-border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-title .icon {
+    font-size: 1.375rem;
+}
+
+/* ---- Alert / Badge ---- */
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.alert-success { background: var(--clr-success-bg); color: var(--clr-success-fg); border: 1px solid #a7f3d0; }
+.alert-info    { background: var(--clr-info-bg);    color: var(--clr-info-fg);    border: 1px solid #93c5fd; }
+.alert-warn    { background: var(--clr-warn-bg);    color: var(--clr-warn-fg);    border: 1px solid #fcd34d; }
+.alert-danger  { background: var(--clr-danger-bg);  color: var(--clr-danger-fg);  border: 1px solid #fca5a5; }
+
+.badge {
+    display: inline-block;
+    padding: 0.2em 0.65em;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.badge-success { background: var(--clr-success-bg); color: var(--clr-success-fg); }
+.badge-info    { background: var(--clr-info-bg);    color: var(--clr-info-fg);    }
+
+/* ---- Attribute table ---- */
+.attr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.attr-table th,
+.attr-table td {
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.attr-table thead th {
+    background: #f8fafc;
+    color: var(--clr-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 2px solid var(--clr-border);
+}
+
+.attr-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.attr-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.attr-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.attr-table .attr-name {
+    font-weight: 600;
+    color: var(--clr-primary);
+    white-space: nowrap;
+    width: 35%;
+}
+
+.attr-table .attr-value {
+    font-family: var(--font-mono);
+    color: var(--clr-text);
+    word-break: break-all;
+}
+
+.attr-table .attr-value.empty {
+    font-family: var(--font);
+    color: var(--clr-muted);
+    font-style: italic;
+}
+
+/* ---- Request ID bar ---- */
+.request-id-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+    background: var(--clr-info-bg);
+    border: 1px solid #93c5fd;
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    color: var(--clr-info-fg);
+    word-break: break-all;
+}
+
+.request-id-bar .rid-label {
+    font-weight: 700;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.request-id-bar .rid-value {
+    font-family: var(--font-mono);
+    flex: 1;
+}
+
+/* ---- Footer ---- */
+.site-footer {
+    background: var(--clr-surface);
+    border-top: 1px solid var(--clr-border);
+    padding: 0.875rem 2rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--clr-muted);
+}
+
+/* ---- Button ---- */
+.btn {
+    display: inline-block;
+    padding: 0.55rem 1.5rem;
+    background: var(--clr-primary-md);
+    color: #fff;
+    text-decoration: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn:hover {
+    background: var(--clr-primary);
+    box-shadow: var(--shadow);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--clr-primary-md);
+    color: var(--clr-primary-md);
+}
+
+.btn-outline:hover {
+    background: var(--clr-primary-md);
+    color: #fff;
+}
+
+/* ---- Error page ---- */
+.error-card {
+    text-align: center;
+}
+
+.error-code {
+    font-size: 6rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+}
+
+.error-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--clr-text);
+    margin-bottom: 0.75rem;
+}
+
+.error-desc {
+    color: var(--clr-muted);
+    margin-bottom: 1.75rem;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.error-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.error-hint {
+    margin-top: 1.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--clr-info-bg);
+    border: 1px solid #93c5fd;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    color: var(--clr-info-fg);
+    text-align: left;
+}
+
+.error-hint strong {
+    font-weight: 700;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 520px) {
+    .site-header {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+    }
+
+    .card {
+        padding: 1.25rem 1rem;
+    }
+
+    .error-code {
+        font-size: 4rem;
+    }
+
+    .attr-table th,
+    .attr-table td {
+        padding: 0.5rem 0.5rem;
+    }
+
+    .attr-table .attr-name {
+        width: 40%;
+    }
+}
