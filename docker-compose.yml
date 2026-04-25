@@ -67,25 +67,29 @@ services:
     volumes:
       # -----------------------------------------------------------------------
       # IdP metadata – mount your own saml20-idp-remote.php here.
+      # Uncomment and adjust the line below to supply IdP metadata.
       #
-      # Docker bind-mount:
+      # Docker bind-mount example:
       #   - ./my-idp-metadata.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
       #
       # Kubernetes ConfigMap (see README for full spec):
       #   name: idp-metadata, mountPath: /var/simplesamlphp/metadata/saml20-idp-remote.php
+      #
+      # When no file is mounted the image's default (empty) metadata file is used.
       # -----------------------------------------------------------------------
-      - ${IDP_METADATA_FILE:-/dev/null}:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+      #- ./my-idp-metadata.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
 
       # -----------------------------------------------------------------------
       # SP signing key and certificate (SAML signing/encryption, NOT TLS).
       # Place sp.key and sp.crt (or whatever names you set in
       # SIMPLESAMLPHP_SP_PRIVATEKEY / SIMPLESAMLPHP_SP_CERTIFICATE) in this
       # directory.
+      # Uncomment and adjust to supply SP credentials.
       #
       # Kubernetes Secret (see README):
       #   name: sp-certs, mountPath: /var/simplesamlphp/cert
       # -----------------------------------------------------------------------
-      - ${SP_CERT_DIR:-./certs/sp}:/var/simplesamlphp/cert:ro
+      #- ./certs/sp:/var/simplesamlphp/cert:ro
 
       # -----------------------------------------------------------------------
       # Apache TLS certificate and private key.
@@ -93,9 +97,10 @@ services:
       # and SSL_PRIVATE_KEY_FILE (defaults:
       #   /etc/ssl/certs/<FQDN>.crt
       #   /etc/ssl/private/<FQDN>.key).
+      # Uncomment and adjust to supply TLS credentials.
       #
       # Kubernetes Secret (see README):
       #   name: tls-secret, mountPath: /etc/ssl/certs / /etc/ssl/private
       # -----------------------------------------------------------------------
-      - ${SSL_CERT_DIR:-./certs/ssl/certs}:/etc/ssl/certs:ro
-      - ${SSL_KEY_DIR:-./certs/ssl/private}:/etc/ssl/private:ro
+      #- ./certs/ssl/certs:/etc/ssl/certs:ro
+      #- ./certs/ssl/private:/etc/ssl/private:ro

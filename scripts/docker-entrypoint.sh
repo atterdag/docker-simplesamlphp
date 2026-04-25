@@ -32,7 +32,16 @@ export DOMAIN_NAME SERVER_NAME SERVER_ALIAS FQDN WEBMASTER \
 : "${SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED:=true}"
 : "${SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED:=true}"
 : "${SIMPLESAMLPHP_ADMIN_PASSWORD:=admin}"
-: "${SIMPLESAMLPHP_SECRET_SALT:=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom 2>/dev/null | head -c 32 || echo 'defaultsecretsalt1234567890abcde')}"
+if [ "${SIMPLESAMLPHP_ADMIN_PASSWORD}" = "admin" ]; then
+    echo "WARNING: SIMPLESAMLPHP_ADMIN_PASSWORD is set to the insecure default 'admin'. Set a strong password via the environment variable." >&2
+fi
+
+# Use openssl to generate a cryptographically-secure salt; fail loudly if
+# the tool is unavailable rather than silently falling back to a predictable
+# value that would compromise token security.
+if [ -z "${SIMPLESAMLPHP_SECRET_SALT:-}" ]; then
+    SIMPLESAMLPHP_SECRET_SALT="$(openssl rand -hex 32)"
+fi
 : "${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME:=Administrator}"
 : "${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL:=webmaster@${DOMAIN_NAME}}"
 : "${SIMPLESAMLPHP_TIMEZONE:=UTC}"
