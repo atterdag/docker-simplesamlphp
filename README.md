@@ -55,7 +55,7 @@ custom Apache snippets.
 | Variable | Default | Description |
 |---|---|---|
 | `SIMPLESAMLPHP_BASE_URL_PATH` | `https://${FQDN}/simplesaml/` | Base URL path |
-| `SIMPLESAMLPHP_SP_ENTITY_ID` | `https://${FQDN}/simplesaml/…` | SP entityID |
+| `SIMPLESAMLPHP_SP_ENTITY_ID` | `https://${FQDN}/simplesaml/module.php/saml/sp/metadata/default-sp` | SP entityID |
 | `SIMPLESAMLPHP_SP_PRIVATEKEY` | `sp.key` | SP private key filename in `certdir` |
 | `SIMPLESAMLPHP_SP_CERTIFICATE` | `sp.crt` | SP certificate filename in `certdir` |
 | `SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED` | `true` | Require signed assertions |
@@ -67,9 +67,17 @@ custom Apache snippets.
 | `SIMPLESAMLPHP_TIMEZONE` | `UTC` | PHP timezone |
 | `SIMPLESAMLPHP_LOGGING_HANDLER` | `errorlog` | `errorlog`, `syslog`, or `file` |
 | `SIMPLESAMLPHP_LOG_DIR` | `/var/simplesamlphp/log` | Base directory for log files (used when `SIMPLESAMLPHP_LOGGING_HANDLER=file`) |
-| `SIMPLESAMLPHP_STORE_TYPE` | `phpsession` | Session store: `phpsession`, `memcache`, or `sql` |
+| `SIMPLESAMLPHP_STORE_TYPE` | `memcache` | Session store: `phpsession`, `memcache`, or `sql` |
 | `MEMCACHE_SERVER_HOST` | `memcached` | Memcached hostname (used when `SIMPLESAMLPHP_STORE_TYPE=memcache`) |
 | `MEMCACHE_SERVER_PORT` | `11211` | Memcached port |
+
+### OpenID Connect (OIDC)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SIMPLESAMLPHP_OIDC_ISSUER` | *(empty)* | OIDC provider issuer URL (e.g. `https://accounts.google.com`). Set all three OIDC variables to enable the `oidc-sp` auth source. |
+| `SIMPLESAMLPHP_OIDC_CLIENT_ID` | *(empty)* | Client ID registered with the OIDC provider |
+| `SIMPLESAMLPHP_OIDC_CLIENT_SECRET` | *(empty)* | Client secret registered with the OIDC provider |
 
 ### Automated metadata management (metarefresh)
 
@@ -264,6 +272,112 @@ containers:
         mountPath: /etc/ssl
         readOnly: true
 ```
+
+---
+
+## Docker Compose deployment
+
+The `docker-compose.yml` in the repository root starts SimpleSAMLphp together
+with a Memcached sidecar for session storage.
+
+### Quick start
+
+**1. Generate the SP SAML signing credentials**
+
+These are the key/certificate used to sign SAML assertions – they are
+**not** the Apache TLS certificate.
+
+```bash
+openssl req -newkey rsa:2048 -new -x509 -days 3652 -nodes \
+  -out sp.crt -keyout sp.key \
+  -subj "/CN=simplesamlphp.example.org"    # <CHANGE_ME> – use your actual FQDN
+
+mkdir -p certs/sp
+mv sp.key sp.crt certs/sp/
+```
+
+**2. Generate the Apache TLS certificate and key**
+
+For local/dev use a self-signed certificate; for production supply a
+certificate signed by a trusted CA (e.g. from Let's Encrypt).
+
+```bash
+# Self-signed – adjust the CN to match your FQDN
+openssl req -newkey rsa:2048 -new -x509 -days 365 -nodes \
+  -out simplesamlphp.example.org.crt \
+  -keyout simplesamlphp.example.org.key \
+  -subj "/CN=simplesamlphp.example.org"    # <CHANGE_ME>
+
+mkdir -p certs/ssl/certs certs/ssl/private
+mv simplesamlphp.example.org.crt certs/ssl/certs/
+mv simplesamlphp.example.org.key certs/ssl/private/
+```
+
+**3. Configure environment variables**
+
+Create a `.env` file next to `docker-compose.yml` and override at minimum
+the domain, admin password, and a stable secret salt:
+
+```bash
+DOMAIN_NAME=example.org                        # <CHANGE_ME>
+SERVER_NAME=simplesamlphp                      # <CHANGE_ME>
+SIMPLESAMLPHP_ADMIN_PASSWORD=changeme          # <CHANGE_ME>
+SIMPLESAMLPHP_SECRET_SALT=$(openssl rand -hex 32)
+```
+
+**4. Uncomment the certificate volume mounts in `docker-compose.yml`**
+
+Edit `docker-compose.yml` and uncomment the volume entries for the SP
+cert and Apache TLS cert so that the files created in steps 1 and 2 are
+mounted into the container:
+
+```yaml
+volumes:
+  - ./certs/sp:/var/simplesamlphp/cert:ro
+  - ./certs/ssl/certs:/etc/ssl/certs:ro
+  - ./certs/ssl/private:/etc/ssl/private:ro
+```
+
+**5. (Optional) Mount your IdP metadata**
+
+If you have a `saml20-idp-remote.php` file, uncomment and adjust the
+corresponding volume entry:
+
+```yaml
+volumes:
+  - ./my-idp-metadata.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+```
+
+**6. Start the stack**
+
+```bash
+docker compose up --build -d
+```
+
+**7. Check status**
+
+```bash
+docker compose ps
+docker compose logs -f simplesamlphp
+```
+
+SimpleSAMLphp will be available at `https://<FQDN>/simplesaml/`.
+
+### Session store
+
+`SIMPLESAMLPHP_STORE_TYPE` defaults to `memcache` in both the image and
+`docker-compose.yml`. Sessions are stored in the Memcached container and
+survive SimpleSAMLphp container restarts as long as Memcached is running.
+Set it to `phpsession` to revert to single-node PHP sessions (no Memcached
+required).
+
+> **Important:** supply a fixed `SIMPLESAMLPHP_SECRET_SALT` value so that
+> session tokens remain valid across SimpleSAMLphp container restarts.
+
+### Injecting IdP metadata
+
+Uncomment the IdP metadata volume in `docker-compose.yml` and point it at
+your `saml20-idp-remote.php` file (see step 5 above).
 
 ---
 
