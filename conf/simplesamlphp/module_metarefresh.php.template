@@ -1,0 +1,104 @@
+<?php
+
+/**
+ * SimpleSAMLphp metarefresh module configuration – generated at container start
+ * by docker-entrypoint.sh using envsubst(1).
+ *
+ * Environment variables substituted into this file:
+ *   SIMPLESAMLPHP_METAREFRESH_CRON_TAG    – cron tag that triggers this set
+ *                                           (default: metarefresh)
+ *   SIMPLESAMLPHP_METAREFRESH_METADATA_URL – URL of the federation / IdP
+ *                                            aggregate metadata XML to fetch
+ *   SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR  – directory where converted PHP
+ *                                           metadata files are written
+ *                                           (default: /var/simplesamlphp/metadata/metarefresh)
+ *   SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER – seconds after which cached
+ *                                            metadata is considered stale
+ *                                            (default: 345600 = 4 days)
+ *
+ * After the first successful refresh the output directory will contain one or
+ * more PHP files (e.g. saml20-idp-remote.php) that SimpleSAMLphp reads via
+ * the 'flatfile' metadata source added in config.php.
+ *
+ * To validate the metadata signature supply a PEM certificate:
+ *   'certificates' => ['/var/simplesamlphp/cert/federation-signing.pem'],
+ *
+ * Multiple sources / federations can be added by duplicating the 'sources'
+ * array entry below.
+ */
+
+$config = [
+
+    'sets' => [
+
+        'default' => [
+
+            /*
+             * Cron tag that must match an entry in module_cron.php
+             * 'allowed_tags' for this set to be refreshed automatically.
+             */
+            'cron' => ['${SIMPLESAMLPHP_METAREFRESH_CRON_TAG}'],
+
+            'sources' => [
+                [
+                    /*
+                     * URL of the remote metadata aggregate (SAML 2.0 XML).
+                     * Set SIMPLESAMLPHP_METAREFRESH_METADATA_URL to the URL
+                     * provided by your federation or IdP operator.
+                     *
+                     * Example (eduGAIN / SWAMID):
+                     *   https://mds.edugain.org/edugain-v2.xml
+                     */
+                    'src' => '${SIMPLESAMLPHP_METAREFRESH_METADATA_URL}',
+
+                    /*
+                     * Uncomment and set to the path of the federation signing
+                     * certificate to validate the metadata signature:
+                     */
+                    // 'certificates' => ['/var/simplesamlphp/cert/federation-signing.pem'],
+
+                    /*
+                     * Optional template applied to every entity parsed from
+                     * this source.  Use it to tag entities or run authproc
+                     * filters for all IdPs in this federation:
+                     */
+                    // 'template' => [
+                    //     'tags'     => ['federation'],
+                    //     'authproc' => [
+                    //         51 => ['class' => 'core:AttributeMap', 'oid2name'],
+                    //     ],
+                    // ],
+                ],
+            ],
+
+            /*
+             * Seconds to keep using cached/stale metadata if the remote source
+             * is temporarily unavailable (default: 345600 = 4 days).
+             */
+            'expireAfter' => ${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER},
+
+            /*
+             * Directory where the converted PHP flatfile metadata is written.
+             * Must match the 'directory' key in config.php metadata.sources.
+             */
+            'outputDir' => '${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}',
+
+            /*
+             * Output format.  'flatfile' produces PHP files compatible with
+             * SimpleSAMLphp's built-in flatfile metadata loader.
+             * 'serialize' produces a single serialized file (faster for large
+             * federations, requires a matching metadata source type).
+             */
+            'outputFormat' => 'flatfile',
+
+            /*
+             * Entity types to extract from the aggregate.
+             * Add 'saml20-sp-remote' if you also need SP entries.
+             */
+            'types' => ['saml20-idp-remote'],
+
+        ],
+
+    ],
+
+];

@@ -71,6 +71,10 @@ COPY conf/simplesamlphp/config.php.template \
      /var/simplesamlphp/config/config.php.template
 COPY conf/simplesamlphp/authsources.php.template \
      /var/simplesamlphp/config/authsources.php.template
+COPY conf/simplesamlphp/module_cron.php.template \
+     /var/simplesamlphp/config/module_cron.php.template
+COPY conf/simplesamlphp/module_metarefresh.php.template \
+     /var/simplesamlphp/config/module_metarefresh.php.template
 
 # ---------------------------------------------------------------------------
 # Copy Apache VirtualHost template
@@ -85,10 +89,13 @@ COPY metadata/saml20-idp-remote.php \
      /var/simplesamlphp/metadata/saml20-idp-remote.php.default
 
 # ---------------------------------------------------------------------------
-# Copy and register the entrypoint script
+# Copy and register the entrypoint script and the ad-hoc metarefresh script
 # ---------------------------------------------------------------------------
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY scripts/metarefresh.sh       /usr/local/bin/metarefresh.sh
+RUN chmod +x \
+        /usr/local/bin/docker-entrypoint.sh \
+        /usr/local/bin/metarefresh.sh
 
 # ---------------------------------------------------------------------------
 # Copy web application files (secure example page, error pages, stylesheet)
@@ -142,6 +149,17 @@ ENV SIMPLESAMLPHP_TIMEZONE=UTC \
     SIMPLESAMLPHP_STORE_TYPE=phpsession \
     MEMCACHE_SERVER_HOST=memcached \
     MEMCACHE_SERVER_PORT=11211
+
+# SimpleSAMLphp – automated metadata management (metarefresh + cron modules)
+# SIMPLESAMLPHP_CRON_SECRET is intentionally left empty here; the entrypoint
+# auto-generates a cryptographically-secure random value when not explicitly
+# supplied.  Set a stable value in production so that the cron URL remains
+# predictable across container restarts.
+ENV SIMPLESAMLPHP_CRON_SECRET="" \
+    SIMPLESAMLPHP_METAREFRESH_CRON_TAG=metarefresh \
+    SIMPLESAMLPHP_METAREFRESH_METADATA_URL="" \
+    SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR=/var/simplesamlphp/metadata/metarefresh \
+    SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER=345600
 
 # ---------------------------------------------------------------------------
 # Volumes

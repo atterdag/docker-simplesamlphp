@@ -81,12 +81,18 @@ $config = [
     /*
      * Modules enabled by default.
      * 'customtheme' provides the branded UI theme (theme.use below).
+     * 'cron'        enables the HTTP-triggered cron endpoint used to schedule
+     *               recurring tasks such as metadata refresh.
+     * 'metarefresh' fetches and converts remote federation metadata XML on
+     *               each cron run.
      */
     'module.enable' => [
         'core'        => true,
         'admin'       => true,
         'saml'        => true,
         'customtheme' => true,
+        'cron'        => true,
+        'metarefresh' => true,
     ],
 
     /*
@@ -113,11 +119,17 @@ $config = [
     'session.authtoken.cookiename'   => 'SimpleSAMLAuthToken',
 
     /*
-     * Metadata sources – use the flatfile handler to read PHP metadata files
-     * from the metadata/ directory.
+     * Metadata sources – the flatfile handler reads PHP metadata files from
+     * the default metadata/ directory.  The second entry points at the
+     * metarefresh output directory so that automatically-fetched federation
+     * metadata is also available without rebuilding the image.
+     *
+     * SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR is substituted by envsubst at
+     * container start (default: /var/simplesamlphp/metadata/metarefresh).
      */
     'metadata.sources' => [
         ['type' => 'flatfile'],
+        ['type' => 'flatfile', 'directory' => '${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}'],
     ],
 
     'metadata.sign.enable'    => false,

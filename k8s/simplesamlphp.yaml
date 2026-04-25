@@ -49,6 +49,18 @@ data:
   # Override the env vars below if you want a different SSL certificate path.
   SSL_CERTIFICATE_FILE: "/etc/ssl/simplesamlphp/tls.crt"
   SSL_PRIVATE_KEY_FILE: "/etc/ssl/simplesamlphp/tls.key"
+  # ---------------------------------------------------------------------------
+  # Automated metadata management (metarefresh + cron modules)
+  # ---------------------------------------------------------------------------
+  # Cron tag that links the metarefresh set to the cron module schedule.
+  SIMPLESAMLPHP_METAREFRESH_CRON_TAG: "metarefresh"
+  # URL of the federation / IdP aggregate metadata XML.  Set this to the
+  # metadata URL provided by your federation or IdP operator.
+  SIMPLESAMLPHP_METAREFRESH_METADATA_URL: ""          # <CHANGE_ME>
+  # Directory inside the container where converted PHP metadata is written.
+  SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR: "/var/simplesamlphp/metadata/metarefresh"
+  # Seconds to keep stale metadata when the remote source is unavailable.
+  SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER: "345600"    # 4 days
 
 ---
 # ---------------------------------------------------------------------------
@@ -77,6 +89,10 @@ stringData:
   # which will invalidate all active sessions.
   # Generate one with: openssl rand -hex 32
   SIMPLESAMLPHP_SECRET_SALT: "<CHANGE_ME>"        # Replace with output of: openssl rand -hex 32
+  # Secret key that protects the cron HTTP trigger endpoint.
+  # Must match the value used by the metarefresh CronJob (k8s/metarefresh-cronjob.yaml).
+  # Generate one with: openssl rand -hex 32
+  SIMPLESAMLPHP_CRON_SECRET: "<CHANGE_ME>"        # Replace with output of: openssl rand -hex 32
 
 ---
 # ---------------------------------------------------------------------------
