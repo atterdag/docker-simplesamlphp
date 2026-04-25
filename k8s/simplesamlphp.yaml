@@ -42,7 +42,12 @@ data:
   # Leave empty to use the entrypoint default (webmaster@<DOMAIN_NAME>)
   SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL: ""               # <CHANGE_ME>
   SIMPLESAMLPHP_TIMEZONE:        "UTC"
-  SIMPLESAMLPHP_LOGGING_HANDLER: "errorlog"
+  # Set to 'file' to write logs to the persistent volume (simplesamlphp-logs
+  # PVC below).  Logs are written to per-pod sub-directories named after
+  # $HOSTNAME (the pod name), making every replica uniquely identifiable.
+  # Use 'errorlog' to revert to stdout/stderr ('kubectl logs' behaviour).
+  SIMPLESAMLPHP_LOGGING_HANDLER: "file"
+  SIMPLESAMLPHP_LOG_DIR:         "/var/simplesamlphp/log"
   SIMPLESAMLPHP_STORE_TYPE:      "memcache"
   MEMCACHE_SERVER_HOST:          "memcached"
   MEMCACHE_SERVER_PORT:          "11211"
@@ -150,6 +155,43 @@ data:
 
 ---
 # ---------------------------------------------------------------------------
+# PersistentVolumeClaim – shared log volume
+#
+# All pod replicas mount this single PVC at /var/simplesamlphp/log.  Each
+# pod writes into its own sub-directory named after its HOSTNAME (pod name),
+# so logs from every replica are kept separate yet stored in one place.
+#
+# ReadWriteMany (RWX) is required so multiple pods can write concurrently.
+# Choose a storageClassName that supports RWX for your cluster, for example:
+#   - NFS-based provisioners (nfs-subdir-external-provisioner)
+#   - Azure Files  (azurefile / azurefile-csi)
+#   - AWS EFS      (efs-sc)
+#   - GCP Filestore (standard-rwx)
+#   - Rook/CephFS  (rook-cephfs)
+#
+# If you only ever run a single replica, ReadWriteOnce is sufficient and
+# supported by nearly every storage class.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: simplesamlphp-logs
+  namespace: simplesamlphp
+  labels:
+    app.kubernetes.io/name: simplesamlphp
+    app.kubernetes.io/component: logs
+spec:
+  accessModes:
+    - ReadWriteMany   # Required for multi-replica deployments; change to
+                      # ReadWriteOnce for single-replica deployments.
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName: ""   # <CHANGE_ME> – set a StorageClass that supports
+                           # the accessMode chosen above.
+
+---
+# ---------------------------------------------------------------------------
 # ConfigMap – IdP metadata (optional)
 #
 # Uncomment and populate this ConfigMap, then uncomment the idp-metadata
@@ -231,6 +273,10 @@ spec:
                   key: SIMPLESAMLPHP_SECRET_SALT
 
           volumeMounts:
+            # Persistent log volume – each pod writes to its own sub-directory
+            # named after $HOSTNAME (the pod name) so replicas are identifiable
+            - name: logs
+              mountPath: /var/simplesamlphp/log
             # SP SAML signing key and certificate
             - name: sp-cert
               mountPath: /var/simplesamlphp/cert
@@ -275,6 +321,9 @@ spec:
             periodSeconds: 10
 
       volumes:
+        - name: logs
+          persistentVolumeClaim:
+            claimName: simplesamlphp-logs
         - name: sp-cert
           secret:
             secretName: simplesamlphp-sp-cert

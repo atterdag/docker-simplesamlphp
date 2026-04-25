@@ -156,6 +156,7 @@ ENV SIMPLESAMLPHP_ADMIN_PASSWORD=admin \
 # 'memcache' when the bundled memcached service is available.
 ENV SIMPLESAMLPHP_TIMEZONE=UTC \
     SIMPLESAMLPHP_LOGGING_HANDLER=errorlog \
+    SIMPLESAMLPHP_LOG_DIR=/var/simplesamlphp/log \
     SIMPLESAMLPHP_STORE_TYPE=phpsession \
     MEMCACHE_SERVER_HOST=memcached \
     MEMCACHE_SERVER_PORT=11211
@@ -174,13 +175,17 @@ ENV SIMPLESAMLPHP_CRON_SECRET="" \
 # ---------------------------------------------------------------------------
 # Volumes
 #
+#  /var/simplesamlphp/log      – SimpleSAMLphp and Apache log files
+#                                (one sub-directory per container, named by
+#                                 $HOSTNAME; mount a shared volume here to
+#                                 collect logs from all replicas in one place)
 #  /var/simplesamlphp/metadata  – IdP metadata (ConfigMap or bind-mount)
 #  /var/simplesamlphp/cert      – SP signing key + cert (Secret or bind-mount)
 #  /etc/ssl/certs               – Apache TLS certificate (Secret or bind-mount)
 #  /etc/ssl/private             – Apache TLS private key (Secret or bind-mount)
 # ---------------------------------------------------------------------------
-VOLUME ["/var/simplesamlphp/metadata", "/var/simplesamlphp/cert", \
-        "/etc/ssl/certs", "/etc/ssl/private"]
+VOLUME ["/var/simplesamlphp/log", "/var/simplesamlphp/metadata", \
+        "/var/simplesamlphp/cert", "/etc/ssl/certs", "/etc/ssl/private"]
 
 EXPOSE 80 443
 

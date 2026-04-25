@@ -46,6 +46,7 @@ fi
 : "${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL:=webmaster@${DOMAIN_NAME}}"
 : "${SIMPLESAMLPHP_TIMEZONE:=UTC}"
 : "${SIMPLESAMLPHP_LOGGING_HANDLER:=errorlog}"
+: "${SIMPLESAMLPHP_LOG_DIR:=/var/simplesamlphp/log}"
 : "${SIMPLESAMLPHP_STORE_TYPE:=phpsession}"
 : "${MEMCACHE_SERVER_HOST:=memcached}"
 : "${MEMCACHE_SERVER_PORT:=11211}"
@@ -79,18 +80,40 @@ export SIMPLESAMLPHP_BASE_URL_PATH SIMPLESAMLPHP_SP_ENTITY_ID \
        SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED \
        SIMPLESAMLPHP_ADMIN_PASSWORD SIMPLESAMLPHP_SECRET_SALT \
        SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL \
-       SIMPLESAMLPHP_TIMEZONE SIMPLESAMLPHP_LOGGING_HANDLER \
+       SIMPLESAMLPHP_TIMEZONE SIMPLESAMLPHP_LOGGING_HANDLER SIMPLESAMLPHP_LOG_DIR \
        SIMPLESAMLPHP_STORE_TYPE MEMCACHE_SERVER_HOST MEMCACHE_SERVER_PORT \
        SIMPLESAMLPHP_CRON_SECRET SIMPLESAMLPHP_METAREFRESH_CRON_TAG \
        SIMPLESAMLPHP_METAREFRESH_METADATA_URL SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR \
        SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER
 
 # ---------------------------------------------------------------------------
+# Per-container log directory
+#
+# HOSTNAME is automatically set by the container runtime to the container
+# short-ID (Docker) or pod name (Kubernetes StatefulSet/Deployment), giving
+# every replica a uniquely-named subdirectory on a shared volume.
+#
+# When SIMPLESAMLPHP_LOGGING_HANDLER=file both SimpleSAMLphp and Apache write
+# into SIMPLESAMLPHP_LOG_DIR_INSTANCE.  For all other handlers Apache falls
+# back to /var/log/apache2 (symlinked to /dev/stdout and /dev/stderr in the
+# base image) so that 'docker logs' continues to show Apache output.
+# ---------------------------------------------------------------------------
+SIMPLESAMLPHP_LOG_DIR_INSTANCE="${SIMPLESAMLPHP_LOG_DIR}/${HOSTNAME}"
+
+if [ "${SIMPLESAMLPHP_LOGGING_HANDLER}" = "file" ]; then
+    APACHE_LOG_DIR_INSTANCE="${SIMPLESAMLPHP_LOG_DIR_INSTANCE}/apache"
+else
+    APACHE_LOG_DIR_INSTANCE="/var/log/apache2"
+fi
+
+export SIMPLESAMLPHP_LOG_DIR_INSTANCE APACHE_LOG_DIR_INSTANCE
+
+# ---------------------------------------------------------------------------
 # Generate Apache VirtualHost configuration from template
 # Only the named variables are substituted; ${APACHE_LOG_DIR} etc. are left
 # intact for Apache itself to expand at runtime.
 # ---------------------------------------------------------------------------
-APACHE_VARS='${DOMAIN_NAME} ${SERVER_NAME} ${SERVER_ALIAS} ${FQDN} ${WEBMASTER} ${SSL_CERTIFICATE_FILE} ${SSL_PRIVATE_KEY_FILE}'
+APACHE_VARS='${DOMAIN_NAME} ${SERVER_NAME} ${SERVER_ALIAS} ${FQDN} ${WEBMASTER} ${SSL_CERTIFICATE_FILE} ${SSL_PRIVATE_KEY_FILE} ${APACHE_LOG_DIR_INSTANCE}'
 envsubst "${APACHE_VARS}" \
     </etc/apache2/sites-available/simplesamlphp.conf.template \
     >/etc/apache2/sites-available/simplesamlphp.conf
@@ -101,7 +124,7 @@ a2ensite simplesamlphp.conf >/dev/null 2>&1 || true
 # ---------------------------------------------------------------------------
 # Generate SimpleSAMLphp config/config.php from template
 # ---------------------------------------------------------------------------
-SSMPHP_CONFIG_VARS='${SIMPLESAMLPHP_BASE_URL_PATH} ${SIMPLESAMLPHP_SECRET_SALT} ${SIMPLESAMLPHP_ADMIN_PASSWORD} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL} ${SIMPLESAMLPHP_TIMEZONE} ${SIMPLESAMLPHP_LOGGING_HANDLER} ${SIMPLESAMLPHP_STORE_TYPE} ${MEMCACHE_SERVER_HOST} ${MEMCACHE_SERVER_PORT} ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}'
+SSMPHP_CONFIG_VARS='${SIMPLESAMLPHP_BASE_URL_PATH} ${SIMPLESAMLPHP_SECRET_SALT} ${SIMPLESAMLPHP_ADMIN_PASSWORD} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_NAME} ${SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL} ${SIMPLESAMLPHP_TIMEZONE} ${SIMPLESAMLPHP_LOGGING_HANDLER} ${SIMPLESAMLPHP_STORE_TYPE} ${MEMCACHE_SERVER_HOST} ${MEMCACHE_SERVER_PORT} ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR} ${SIMPLESAMLPHP_LOG_DIR_INSTANCE}'
 envsubst "${SSMPHP_CONFIG_VARS}" \
     </var/simplesamlphp/config/config.php.template \
     >/var/simplesamlphp/config/config.php
@@ -137,6 +160,17 @@ envsubst "${SSMPHP_METAREFRESH_VARS}" \
 mkdir -p "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}"
 
 # ---------------------------------------------------------------------------
+# Create the per-container log directory.  All replicas sharing a single
+# volume each get their own sub-directory named after the container's
+# HOSTNAME (container short-ID in Docker; pod name in Kubernetes), making
+# every replica uniquely identifiable in the log tree.
+# ---------------------------------------------------------------------------
+mkdir -p "${SIMPLESAMLPHP_LOG_DIR_INSTANCE}"
+if [ "${SIMPLESAMLPHP_LOGGING_HANDLER}" = "file" ]; then
+    mkdir -p "${APACHE_LOG_DIR_INSTANCE}"
+fi
+
+# ---------------------------------------------------------------------------
 # If a bind-mounted saml20-idp-remote.php is not present, use the default
 # ---------------------------------------------------------------------------
 if [ ! -f /var/simplesamlphp/metadata/saml20-idp-remote.php ]; then
@@ -153,6 +187,7 @@ chown -R www-data:www-data \
     /var/simplesamlphp/cert \
     /var/simplesamlphp/log \
     /var/cache/simplesamlphp \
-    "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}"
+    "${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR}" \
+    "${SIMPLESAMLPHP_LOG_DIR_INSTANCE}"
 
 exec "$@"

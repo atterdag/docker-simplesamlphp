@@ -12,6 +12,8 @@
  *   SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL  – contact e-mail
  *   SIMPLESAMLPHP_TIMEZONE                 – PHP/display timezone (e.g. UTC)
  *   SIMPLESAMLPHP_LOGGING_HANDLER          – logging handler: errorlog|syslog|file
+ *   SIMPLESAMLPHP_LOG_DIR_INSTANCE         – per-container log directory (computed from
+ *                                            SIMPLESAMLPHP_LOG_DIR / $HOSTNAME by the entrypoint)
  *   SIMPLESAMLPHP_STORE_TYPE               – session store: phpsession|memcache|sql
  *   MEMCACHE_SERVER_HOST                   – memcached hostname (default: memcached)
  *   MEMCACHE_SERVER_PORT                   – memcached port (default: 11211)
@@ -31,7 +33,14 @@ $config = [
      */
     'cachedir'  => '/var/cache/simplesamlphp',
     'certdir'   => '/var/simplesamlphp/cert/',
-    'loggingdir' => null,      // required when logging.handler != 'file'
+    /*
+     * Per-container log directory.  The entrypoint derives this from
+     * SIMPLESAMLPHP_LOG_DIR / $HOSTNAME so every replica writes to its own
+     * sub-directory when logs are stored on a shared volume.
+     * Only used by SimpleSAMLphp when logging.handler is 'file'; ignored for
+     * 'errorlog' and 'syslog'.
+     */
+    'loggingdir' => '${SIMPLESAMLPHP_LOG_DIR_INSTANCE}/',
     'datadir'   => '/var/simplesamlphp/data/',
 
     /*

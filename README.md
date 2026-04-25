@@ -66,6 +66,7 @@ custom Apache snippets.
 | `SIMPLESAMLPHP_TECHNICAL_CONTACT_EMAIL` | `webmaster@${DOMAIN_NAME}` | Contact e-mail |
 | `SIMPLESAMLPHP_TIMEZONE` | `UTC` | PHP timezone |
 | `SIMPLESAMLPHP_LOGGING_HANDLER` | `errorlog` | `errorlog`, `syslog`, or `file` |
+| `SIMPLESAMLPHP_LOG_DIR` | `/var/simplesamlphp/log` | Base directory for log files (used when `SIMPLESAMLPHP_LOGGING_HANDLER=file`) |
 | `SIMPLESAMLPHP_STORE_TYPE` | `phpsession` | Session store: `phpsession`, `memcache`, or `sql` |
 | `MEMCACHE_SERVER_HOST` | `memcached` | Memcached hostname (used when `SIMPLESAMLPHP_STORE_TYPE=memcache`) |
 | `MEMCACHE_SERVER_PORT` | `11211` | Memcached port |
@@ -83,6 +84,68 @@ custom Apache snippets.
 ---
 
 ## Volume mounts
+
+### Log volume – persistent, multi-replica log storage
+
+When `SIMPLESAMLPHP_LOGGING_HANDLER=file` the entrypoint writes both
+SimpleSAMLphp and Apache logs under `SIMPLESAMLPHP_LOG_DIR` (default:
+`/var/simplesamlphp/log`).  Each container creates its own sub-directory
+named after `$HOSTNAME` (the Docker container short-ID or the Kubernetes pod
+name), keeping every replica's logs separate while sharing a single volume.
+
+**Docker Compose – named volume (single host):**
+
+```yaml
+services:
+  simplesamlphp:
+    environment:
+      SIMPLESAMLPHP_LOGGING_HANDLER: file
+      SIMPLESAMLPHP_LOG_DIR: /var/simplesamlphp/log
+    volumes:
+      - simplesamlphp-logs:/var/simplesamlphp/log
+
+volumes:
+  simplesamlphp-logs:
+    driver: local
+```
+
+Logs are then accessible via:
+```bash
+docker compose exec simplesamlphp ls /var/simplesamlphp/log/
+# <container-hostname>/
+#   simplesamlphp.log
+#   apache/
+#     error.log
+#     access.log
+```
+
+**Kubernetes – PersistentVolumeClaim (multi-replica):**
+
+The `k8s/simplesamlphp.yaml` manifest includes a `PersistentVolumeClaim`
+(`simplesamlphp-logs`) with `accessModes: [ReadWriteMany]`.  You must
+supply a `storageClassName` that supports RWX for your cluster (e.g.
+NFS, Azure Files, AWS EFS, GCP Filestore, or Rook/CephFS).
+
+After deploying, each pod writes to its own sub-directory:
+```
+/var/simplesamlphp/log/
+  simplesamlphp-abc12/    # pod 1 (HOSTNAME = pod name)
+    simplesamlphp.log
+    apache/
+      error.log
+      access.log
+  simplesamlphp-xyz99/    # pod 2
+    simplesamlphp.log
+    apache/
+      error.log
+      access.log
+```
+
+> **Note:** When `SIMPLESAMLPHP_LOGGING_HANDLER` is `errorlog` (the image
+> default), Apache logs continue to be written to the standard Apache log
+> directory which the base image symlinks to `/dev/stdout` and `/dev/stderr`,
+> so `docker logs` / `kubectl logs` continue to work as usual.  Only switch
+> to `file` logging when you intend to persist logs on a volume.
 
 ### IdP metadata – `saml20-idp-remote.php`
 
