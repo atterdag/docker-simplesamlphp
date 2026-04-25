@@ -41,6 +41,8 @@ RUN pecl install memcached \
 # Apache modules
 # ---------------------------------------------------------------------------
 RUN a2enmod \
+        deflate \
+        expires \
         headers \
         http2 \
         rewrite \
@@ -82,6 +84,13 @@ COPY conf/simplesamlphp/module_metarefresh.php.template \
 # ---------------------------------------------------------------------------
 COPY conf/apache/simplesamlphp.conf.template \
      /etc/apache2/sites-available/simplesamlphp.conf.template
+
+# ---------------------------------------------------------------------------
+# Copy MPM prefork tuning (overrides the base-image defaults, which are
+# sized for ~1 GB RAM; this configuration targets 4 GB RAM)
+# ---------------------------------------------------------------------------
+COPY conf/apache/mpm_prefork.conf \
+     /etc/apache2/mods-available/mpm_prefork.conf
 
 # ---------------------------------------------------------------------------
 # Copy default IdP metadata (overridable via volume/ConfigMap mount)
