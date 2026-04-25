@@ -117,6 +117,25 @@ services:
       SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR:     ${SIMPLESAMLPHP_METAREFRESH_OUTPUT_DIR:-/var/simplesamlphp/metadata/metarefresh}
       SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER:   ${SIMPLESAMLPHP_METAREFRESH_EXPIRE_AFTER:-345600}
 
+      # -----------------------------------------------------------------------
+      # OpenID Connect (OIDC) Relying Party configuration
+      #
+      # Set all three variables to enable the oidc-sp authentication source.
+      # The provider must support OpenID Connect Discovery
+      # (${SIMPLESAMLPHP_OIDC_ISSUER}/.well-known/openid-configuration).
+      #
+      # Example (Google):
+      #   SIMPLESAMLPHP_OIDC_ISSUER=https://accounts.google.com
+      #   SIMPLESAMLPHP_OIDC_CLIENT_ID=<your-client-id>
+      #   SIMPLESAMLPHP_OIDC_CLIENT_SECRET=<your-client-secret>
+      #
+      # The callback/redirect URI to register with your provider is:
+      #   https://<FQDN>/simplesaml/module.php/authoauth2/linkback.php
+      # -----------------------------------------------------------------------
+      SIMPLESAMLPHP_OIDC_ISSUER:        ${SIMPLESAMLPHP_OIDC_ISSUER:-}
+      SIMPLESAMLPHP_OIDC_CLIENT_ID:     ${SIMPLESAMLPHP_OIDC_CLIENT_ID:-}
+      SIMPLESAMLPHP_OIDC_CLIENT_SECRET: ${SIMPLESAMLPHP_OIDC_CLIENT_SECRET:-}
+
     ports:
       - "80:80"
       - "443:443"

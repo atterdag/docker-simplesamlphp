@@ -2,12 +2,19 @@
 declare(strict_types=1);
 
 /**
- * secure/index.php – SAML-protected example page.
+ * secure/oidc.php – OpenID Connect protected example page.
  *
- * Requires a valid authentication session from SimpleSAMLphp (default-sp
+ * Requires a valid authentication session from SimpleSAMLphp (oidc-sp
  * auth source).  On success the page displays the authenticated user's
- * NameID, e-mail address, given name and surname that were delivered in
- * the SAML assertion.
+ * claims that were delivered in the OIDC ID token and/or userinfo response.
+ *
+ * Configure the oidc-sp auth source by setting:
+ *   SIMPLESAMLPHP_OIDC_ISSUER        – OpenID Connect provider issuer URL
+ *   SIMPLESAMLPHP_OIDC_CLIENT_ID     – client ID registered with the provider
+ *   SIMPLESAMLPHP_OIDC_CLIENT_SECRET – client secret
+ *
+ * The callback/redirect URI to register with your provider is:
+ *   https://<FQDN>/simplesaml/module.php/authoauth2/linkback.php
  *
  * A correlation / request ID (injected by Apache mod_unique_id as the
  * UNIQUE_ID environment variable and forwarded as the X-Request-ID response
@@ -18,13 +25,14 @@ declare(strict_types=1);
 require_once '/var/simplesamlphp/vendor/autoload.php';
 
 // ---------------------------------------------------------------------------
-// Require authentication – redirects to the IdP if no session exists.
+// Require authentication – redirects to the OIDC provider if no session exists.
 // ---------------------------------------------------------------------------
-$as = new \SimpleSAML\Auth\Simple('default-sp');
+$as = new \SimpleSAML\Auth\Simple('oidc-sp');
 $as->requireAuth();
 
 // ---------------------------------------------------------------------------
-// Retrieve SAML attributes delivered in the assertion.
+// Retrieve OIDC claims delivered as SimpleSAMLphp attributes.
+// authoauth2 maps OIDC claim names directly to attribute keys.
 // ---------------------------------------------------------------------------
 $attributes = $as->getAttributes();
 
@@ -41,59 +49,20 @@ $attr = static function (array $attributes, array $keys, string $default = ''): 
     return $default;
 };
 
-// E-mail (OID 0.9.2342.19200300.100.1.3 = mail)
-$email = $attr($attributes, [
-    'mail',
-    'email',
-    'urn:oid:0.9.2342.19200300.100.1.3',
-]);
+// Subject identifier (mandatory OIDC claim)
+$sub = $attr($attributes, ['sub']);
 
-// Given name (OID 2.5.4.42 = givenName)
-$firstName = $attr($attributes, [
-    'givenName',
-    'given_name',
-    'firstname',
-    'urn:oid:2.5.4.42',
-]);
+// E-mail
+$email = $attr($attributes, ['email']);
 
-// Surname (OID 2.5.4.4 = sn)
-$lastName = $attr($attributes, [
-    'sn',
-    'surname',
-    'last_name',
-    'lastname',
-    'urn:oid:2.5.4.4',
-]);
+// Given name / first name
+$firstName = $attr($attributes, ['given_name', 'firstname']);
 
-// ---------------------------------------------------------------------------
-// Retrieve NameID.
-// In SimpleSAMLphp 2.x getAuthData('saml:sp:NameID') returns a
-// \SimpleSAML\SAML2\XML\saml\NameID object (saml/saml2 library ≥ 4).
-// Earlier builds and some edge-cases return an array or a plain string.
-// ---------------------------------------------------------------------------
-$nameId = '';
-$nameIdFormat = '';
-$nameIdObj = $as->getAuthData('saml:sp:NameID');
-if ($nameIdObj !== null) {
-    if (is_object($nameIdObj)) {
-        // SAML2 library ≥ 4: getContent() returns the identifier value.
-        if (method_exists($nameIdObj, 'getContent')) {
-            $nameId = $nameIdObj->getContent();
-        } elseif (method_exists($nameIdObj, 'getValue')) {
-            $nameId = $nameIdObj->getValue();
-        } else {
-            $nameId = (string) $nameIdObj;
-        }
-        if (method_exists($nameIdObj, 'getFormat')) {
-            $nameIdFormat = (string) $nameIdObj->getFormat();
-        }
-    } elseif (is_array($nameIdObj)) {
-        $nameId       = (string) ($nameIdObj['Value']  ?? '');
-        $nameIdFormat = (string) ($nameIdObj['Format'] ?? '');
-    } else {
-        $nameId = (string) $nameIdObj;
-    }
-}
+// Family name / last name
+$lastName = $attr($attributes, ['family_name', 'lastname']);
+
+// Full display name (may be provided directly by some providers)
+$displayNameFull = $attr($attributes, ['name']);
 
 // ---------------------------------------------------------------------------
 // Correlation / request ID – set by Apache mod_unique_id and exposed as
@@ -126,22 +95,30 @@ $display = static function (string $value): string {
     );
 };
 
-// Shorten the NameID format URN for display.
-$nameIdFormatShort = str_replace(
-    'urn:oasis:names:tc:SAML:2.0:nameid-format:',
-    '',
-    $nameIdFormat
-);
+// Derive a page title from available claims.
+$derivedName = trim($firstName . ' ' . $lastName);
+if ($displayNameFull !== '') {
+    $pageTitle = $displayNameFull;
+} elseif ($derivedName !== '') {
+    $pageTitle = $derivedName;
+} elseif ($email !== '') {
+    $pageTitle = $email;
+} else {
+    $pageTitle = 'Authenticated User';
+}
 
-$displayName = trim($firstName . ' ' . $lastName);
-$pageTitle   = $displayName !== '' ? $displayName : ($email !== '' ? $email : 'Authenticated User');
+// ---------------------------------------------------------------------------
+// Build a table of all raw attributes for extended inspection.
+// Sort by key for predictable display order.
+// ---------------------------------------------------------------------------
+ksort($attributes);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Page – SimpleSAMLphp</title>
+    <title>Secure Page (OIDC) – SimpleSAMLphp</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -149,6 +126,7 @@ $pageTitle   = $displayName !== '' ? $displayName : ($email !== '' ? $email : 'A
 <header class="site-header">
     <a class="brand" href="/"><span>Simple</span>SAMLphp</a>
     <nav>
+        <span class="badge badge-info">&#128273;&nbsp;OpenID Connect</span>
         <span class="badge badge-success">&#10003;&nbsp;Authenticated</span>
         <a class="btn-logout" href="<?= $logoutUrl ?>">Sign out</a>
     </nav>
@@ -163,28 +141,22 @@ $pageTitle   = $displayName !== '' ? $displayName : ($email !== '' ? $email : 'A
         </h1>
 
         <div class="alert alert-success">
-            &#10003;&nbsp; You have been successfully authenticated via SAML&nbsp;2.0.
-            The attributes below were delivered in the SAML assertion.
+            &#10003;&nbsp; You have been successfully authenticated via OpenID Connect.
+            The claims below were delivered in the OIDC ID token / userinfo response.
         </div>
 
         <table class="attr-table">
             <thead>
                 <tr>
-                    <th>Attribute</th>
+                    <th>Claim</th>
                     <th>Value</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td class="attr-name">NameID</td>
-                    <td><?= $display($nameId) ?></td>
+                    <td class="attr-name">Subject (sub)</td>
+                    <td><?= $display($sub) ?></td>
                 </tr>
-                <?php if ($nameIdFormatShort !== ''): ?>
-                <tr>
-                    <td class="attr-name">NameID Format</td>
-                    <td><?= $display($nameIdFormatShort) ?></td>
-                </tr>
-                <?php endif; ?>
                 <tr>
                     <td class="attr-name">First Name</td>
                     <td><?= $display($firstName) ?></td>
@@ -194,11 +166,40 @@ $pageTitle   = $displayName !== '' ? $displayName : ($email !== '' ? $email : 'A
                     <td><?= $display($lastName) ?></td>
                 </tr>
                 <tr>
+                    <td class="attr-name">Full Name</td>
+                    <td><?= $display($displayNameFull) ?></td>
+                </tr>
+                <tr>
                     <td class="attr-name">E-mail</td>
                     <td><?= $display($email) ?></td>
                 </tr>
             </tbody>
         </table>
+
+        <?php if (!empty($attributes)): ?>
+        <details style="margin-bottom: 1.5rem;">
+            <summary style="cursor:pointer; font-weight:600; color:var(--clr-primary-md); font-size:0.875rem; padding:0.5rem 0;">
+                All claims (<?= count($attributes) ?>)
+            </summary>
+            <table class="attr-table" style="margin-top:0.75rem;">
+                <thead>
+                    <tr>
+                        <th>Claim</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($attributes as $name => $values): ?>
+                    <?php $valueStr = implode(', ', array_map('strval', (array) $values)); ?>
+                    <tr>
+                        <td class="attr-name"><?= htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= $display($valueStr) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </details>
+        <?php endif; ?>
 
         <?php if ($requestId !== ''): ?>
         <div class="request-id-bar">

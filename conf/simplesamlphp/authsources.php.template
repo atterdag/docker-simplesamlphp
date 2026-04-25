@@ -10,13 +10,23 @@
  *   SIMPLESAMLPHP_SP_CERTIFICATE            – filename of SP certificate in certdir
  *   SIMPLESAMLPHP_SP_WANT_ASSERTIONS_SIGNED – true|false (default: true)
  *   SIMPLESAMLPHP_SP_WANT_MESSAGE_SIGNED    – true|false (default: true)
+ *   SIMPLESAMLPHP_OIDC_ISSUER               – OpenID Connect provider issuer URL
+ *   SIMPLESAMLPHP_OIDC_CLIENT_ID            – OIDC client ID registered with the provider
+ *   SIMPLESAMLPHP_OIDC_CLIENT_SECRET        – OIDC client secret
  *
- * The SP private key and certificate must be placed in the certdir configured
- * in config.php (default: /var/simplesamlphp/cert/).  Mount them as a
- * Kubernetes Secret or Docker volume bind-mount.
+ * SAML:
+ *   The SP private key and certificate must be placed in the certdir configured
+ *   in config.php (default: /var/simplesamlphp/cert/).  Mount them as a
+ *   Kubernetes Secret or Docker volume bind-mount.
  *
- * The IdP to use is read from metadata/saml20-idp-remote.php.  Mount that
- * file from a Kubernetes ConfigMap or a Docker volume bind-mount.
+ *   The IdP to use is read from metadata/saml20-idp-remote.php.  Mount that
+ *   file from a Kubernetes ConfigMap or a Docker volume bind-mount.
+ *
+ * OIDC:
+ *   Set SIMPLESAMLPHP_OIDC_ISSUER, SIMPLESAMLPHP_OIDC_CLIENT_ID, and
+ *   SIMPLESAMLPHP_OIDC_CLIENT_SECRET to enable the oidc-sp authentication
+ *   source.  The provider must support OpenID Connect Discovery
+ *   (${issuer}/.well-known/openid-configuration).
  */
 
 $config = [
@@ -80,5 +90,36 @@ $config = [
             'Format'      => 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient',
             'AllowCreate' => true,
         ],
+    ],
+
+    // OpenID Connect Relying Party (OIDC SP)
+    //
+    // Powered by cirrusidentity/simplesamlphp-module-authoauth2.
+    // Configure by setting the three SIMPLESAMLPHP_OIDC_* environment
+    // variables.  The provider must support OpenID Connect Discovery.
+    'oidc-sp' => [
+        'authoauth2:OpenIDConnect',
+
+        /*
+         * Issuer URL of the OpenID Connect provider.
+         * Used for discovery: ${issuer}/.well-known/openid-configuration
+         * Injected from SIMPLESAMLPHP_OIDC_ISSUER.
+         */
+        'issuer' => '${SIMPLESAMLPHP_OIDC_ISSUER}',
+
+        /*
+         * OAuth 2.0 / OIDC client credentials registered with the provider.
+         * Injected from SIMPLESAMLPHP_OIDC_CLIENT_ID and
+         * SIMPLESAMLPHP_OIDC_CLIENT_SECRET.
+         */
+        'clientId'     => '${SIMPLESAMLPHP_OIDC_CLIENT_ID}',
+        'clientSecret' => '${SIMPLESAMLPHP_OIDC_CLIENT_SECRET}',
+
+        /*
+         * Scopes requested from the provider.
+         * 'openid' is mandatory; 'profile' and 'email' deliver the standard
+         * identity claims (name, given_name, family_name, email, sub).
+         */
+        'scopes' => ['openid', 'profile', 'email'],
     ],
 ];
