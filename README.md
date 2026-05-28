@@ -20,6 +20,58 @@ SAML 2.0 Service Provider on Apache with PHP.
 
 ---
 
+## Pre-built image
+
+A multi-platform (`linux/amd64`, `linux/arm64`) image is published to the
+**GitHub Container Registry** automatically on every push to `main`:
+
+```
+ghcr.io/atterdag/docker-simplesamlphp
+```
+
+### Tags
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Most recent build from `main` |
+| `ssp-<version>` | Pinned to a specific SimpleSAMLphp version (e.g. `ssp-2.5.0`) |
+| `sha-<short>` | Pinned to a specific Git commit (e.g. `sha-a1b2c3d`) |
+
+Use `ssp-<version>` or `sha-<short>` tags in production to avoid unexpected
+updates.
+
+### Using the pre-built image
+
+**docker run:**
+
+```bash
+docker run \
+  -e DOMAIN_NAME=example.org \
+  -e SERVER_NAME=simplesamlphp \
+  -p 80:80 -p 443:443 \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+**docker compose** – replace the `build:` section in `docker-compose.yml` with
+an `image:` reference to skip the local build step:
+
+```yaml
+services:
+  simplesamlphp:
+    image: ghcr.io/atterdag/docker-simplesamlphp:latest
+    # remove or comment out the build: block
+```
+
+**Kubernetes** – use the image directly in the Deployment manifest:
+
+```yaml
+containers:
+  - name: simplesamlphp
+    image: ghcr.io/atterdag/docker-simplesamlphp:ssp-2.5.0
+```
+
+---
+
 ## Quick start
 
 ```bash
@@ -485,11 +537,19 @@ stack (SimpleSAMLphp + Memcached) on Kubernetes.
 
 ### Quick start
 
-**1. Build and push the image**
+**1. Choose an image**
+
+Use the pre-built image from the GitHub Container Registry (see [Pre-built
+image](#pre-built-image) above) or build and push your own:
 
 ```bash
+# Option A – pre-built (no build step required)
+IMAGE=ghcr.io/atterdag/docker-simplesamlphp:latest
+
+# Option B – build and push your own
 docker build -t ghcr.io/<ORG>/docker-simplesamlphp:latest .
 docker push ghcr.io/<ORG>/docker-simplesamlphp:latest
+IMAGE=ghcr.io/<ORG>/docker-simplesamlphp:latest
 ```
 
 **2. Create the SP SAML signing credentials**
