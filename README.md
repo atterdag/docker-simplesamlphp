@@ -93,6 +93,95 @@ custom Apache snippets.
 
 ## Volume mounts
 
+### Declared volumes and bind-mount overrides
+
+The `Dockerfile` declares five volumes with the `VOLUME` instruction:
+
+| Container path | Purpose |
+|---|---|
+| `/var/simplesamlphp/log` | SimpleSAMLphp and Apache log files |
+| `/var/simplesamlphp/metadata` | IdP metadata (`saml20-idp-remote.php` and metarefresh output) |
+| `/var/simplesamlphp/cert` | SP SAML signing key and certificate |
+| `/etc/ssl/certs` | Apache TLS certificate(s) |
+| `/etc/ssl/private` | Apache TLS private key(s) |
+
+When a path is listed in `VOLUME`, Docker automatically creates an **anonymous
+volume** for it if you do not provide your own mount.  Anonymous volumes are
+managed by Docker, survive container restarts, but are lost when the container
+is removed with `docker rm -v`.
+
+To take control of a path – inspect its contents on the host, persist it
+across container removals, or inject files into the container – replace the
+anonymous volume with a **bind mount** pointing to a directory (or file) on
+the host.  Bind mounts always win over anonymous volumes: Docker uses the
+host path instead of the anonymous volume whenever you supply one explicitly.
+
+#### docker run – bind-mount all volumes
+
+```bash
+docker run \
+  # Logs
+  -v /host/logs:/var/simplesamlphp/log \
+  # IdP metadata
+  -v /host/metadata:/var/simplesamlphp/metadata \
+  # SP SAML signing credentials
+  -v /host/certs/sp:/var/simplesamlphp/cert:ro \
+  # Apache TLS certificate
+  -v /host/certs/ssl/certs:/etc/ssl/certs:ro \
+  # Apache TLS private key
+  -v /host/certs/ssl/private:/etc/ssl/private:ro \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+You can override only the volumes you care about; any path not explicitly
+mounted still gets an anonymous volume.
+
+To bind-mount a **single file** (e.g. only the IdP metadata) rather than a
+whole directory:
+
+```bash
+docker run \
+  -v /host/saml20-idp-remote.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+#### docker-compose.yml – bind-mount all volumes
+
+Replace (or supplement) the named-volume entries in `docker-compose.yml` with
+host paths:
+
+```yaml
+services:
+  simplesamlphp:
+    volumes:
+      # Logs – host directory, writable so all replicas can append
+      - /host/logs:/var/simplesamlphp/log
+
+      # IdP metadata – whole directory (includes metarefresh output)
+      - /host/metadata:/var/simplesamlphp/metadata
+
+      # SP SAML signing credentials
+      - /host/certs/sp:/var/simplesamlphp/cert:ro
+
+      # Apache TLS certificate
+      - /host/certs/ssl/certs:/etc/ssl/certs:ro
+
+      # Apache TLS private key
+      - /host/certs/ssl/private:/etc/ssl/private:ro
+```
+
+Relative paths (e.g. `./certs/sp`) are resolved relative to the directory
+containing `docker-compose.yml`.
+
+> **Permissions:** The entrypoint runs `chown -R www-data:www-data` on
+> `/var/simplesamlphp/{config,metadata,cert,log}` and
+> `/var/cache/simplesamlphp` at startup, so host directories used for those
+> paths must be writable by the container's root process (UID 0) during the
+> entrypoint phase.  Directories mounted `:ro` (cert, TLS) do not need to be
+> writable.
+
+---
+
 ### Log volume – persistent, multi-replica log storage
 
 When `SIMPLESAMLPHP_LOGGING_HANDLER=file` the entrypoint writes both
