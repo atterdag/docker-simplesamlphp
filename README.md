@@ -20,10 +20,83 @@ SAML 2.0 Service Provider on Apache with PHP.
 
 ---
 
+## Pre-built image
+
+A multi-platform (`linux/amd64`, `linux/arm64`) image is published to the
+**GitHub Container Registry** automatically on every push to `main`:
+
+```
+ghcr.io/atterdag/docker-simplesamlphp
+```
+
+### Tags
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Most recent build from `main` |
+| `ssp-<version>` | Pinned to a specific SimpleSAMLphp version (e.g. `ssp-2.5.0`) |
+| `sha-<short>` | Pinned to a specific Git commit (e.g. `sha-a1b2c3d`) |
+
+Use `ssp-<version>` or `sha-<short>` tags in production to avoid unexpected
+updates.
+
+### Using the pre-built image
+
+**docker run / podman run:**
+
+```bash
+# Docker
+docker run \
+  -e DOMAIN_NAME=example.org \
+  -e SERVER_NAME=simplesamlphp \
+  -p 80:80 -p 443:443 \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+
+# Podman (rootless – ports ≥ 1024 only; see note below for 80/443)
+podman run \
+  -e DOMAIN_NAME=example.org \
+  -e SERVER_NAME=simplesamlphp \
+  -p 8080:80 -p 8443:443 \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+> **Podman rootless and privileged ports:** unprivileged users cannot bind to
+> ports below 1024 by default.  Either use high ports (`8080`/`8443`) and
+> reverse-proxy in front, or allow low ports system-wide:
+> `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80`
+
+**docker compose / podman compose** – replace the `build:` section in
+`docker-compose.yml` with an `image:` reference to skip the local build step:
+
+```yaml
+services:
+  simplesamlphp:
+    image: ghcr.io/atterdag/docker-simplesamlphp:latest
+    # remove or comment out the build: block
+```
+
+Then start with either:
+
+```bash
+docker compose up -d    # Docker
+podman compose up -d    # Podman (≥ 4.7) or podman-compose
+```
+
+**Kubernetes** – use the image directly in the Deployment manifest:
+
+```yaml
+containers:
+  - name: simplesamlphp
+    image: ghcr.io/atterdag/docker-simplesamlphp:ssp-2.5.0
+```
+
+---
+
 ## Quick start
 
 ```bash
-docker compose up --build
+docker compose up --build    # Docker
+podman compose up --build    # Podman (≥ 4.7) or podman-compose
 ```
 
 The container exposes port **80** (redirects to HTTPS) and **443**.
@@ -92,6 +165,111 @@ custom Apache snippets.
 ---
 
 ## Volume mounts
+
+### Declared volumes and bind-mount overrides
+
+The `Dockerfile` declares five volumes with the `VOLUME` instruction:
+
+| Container path | Purpose |
+|---|---|
+| `/var/simplesamlphp/log` | SimpleSAMLphp and Apache log files |
+| `/var/simplesamlphp/metadata` | IdP metadata (`saml20-idp-remote.php` and metarefresh output) |
+| `/var/simplesamlphp/cert` | SP SAML signing key and certificate |
+| `/etc/ssl/certs` | Apache TLS certificate(s) |
+| `/etc/ssl/private` | Apache TLS private key(s) |
+
+When a path is listed in `VOLUME`, Docker automatically creates an **anonymous
+volume** for it if you do not provide your own mount.  Anonymous volumes are
+managed by Docker, survive container restarts, but are lost when the container
+is removed with `docker rm -v`.
+
+To take control of a path – inspect its contents on the host, persist it
+across container removals, or inject files into the container – replace the
+anonymous volume with a **bind mount** pointing to a directory (or file) on
+the host.  Bind mounts always win over anonymous volumes: Docker uses the
+host path instead of the anonymous volume whenever you supply one explicitly.
+
+#### docker run / podman run – bind-mount all volumes
+
+```bash
+# Docker
+docker run \
+  # Logs
+  -v /host/logs:/var/simplesamlphp/log \
+  # IdP metadata
+  -v /host/metadata:/var/simplesamlphp/metadata \
+  # SP SAML signing credentials
+  -v /host/certs/sp:/var/simplesamlphp/cert:ro \
+  # Apache TLS certificate
+  -v /host/certs/ssl/certs:/etc/ssl/certs:ro \
+  # Apache TLS private key
+  -v /host/certs/ssl/private:/etc/ssl/private:ro \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+
+# Podman – identical flags; add :z or :Z for SELinux relabelling if needed
+podman run \
+  -v /host/logs:/var/simplesamlphp/log:z \
+  -v /host/metadata:/var/simplesamlphp/metadata:z \
+  -v /host/certs/sp:/var/simplesamlphp/cert:ro,z \
+  -v /host/certs/ssl/certs:/etc/ssl/certs:ro,z \
+  -v /host/certs/ssl/private:/etc/ssl/private:ro,z \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+You can override only the volumes you care about; any path not explicitly
+mounted still gets an anonymous volume.
+
+To bind-mount a **single file** (e.g. only the IdP metadata) rather than a
+whole directory:
+
+```bash
+# Docker
+docker run \
+  -v /host/saml20-idp-remote.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+
+# Podman
+podman run \
+  -v /host/saml20-idp-remote.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro,z \
+  ghcr.io/atterdag/docker-simplesamlphp:latest
+```
+
+#### docker-compose.yml – bind-mount all volumes
+
+Replace (or supplement) the named-volume entries in `docker-compose.yml` with
+host paths:
+
+```yaml
+services:
+  simplesamlphp:
+    volumes:
+      # Logs – host directory, writable so all replicas can append
+      - /host/logs:/var/simplesamlphp/log
+
+      # IdP metadata – whole directory (includes metarefresh output)
+      - /host/metadata:/var/simplesamlphp/metadata
+
+      # SP SAML signing credentials
+      - /host/certs/sp:/var/simplesamlphp/cert:ro
+
+      # Apache TLS certificate
+      - /host/certs/ssl/certs:/etc/ssl/certs:ro
+
+      # Apache TLS private key
+      - /host/certs/ssl/private:/etc/ssl/private:ro
+```
+
+Relative paths (e.g. `./certs/sp`) are resolved relative to the directory
+containing `docker-compose.yml`.
+
+> **Permissions:** The entrypoint runs `chown -R www-data:www-data` on
+> `/var/simplesamlphp/{config,metadata,cert,log}` and
+> `/var/cache/simplesamlphp` at startup, so host directories used for those
+> paths must be writable by the container's root process (UID 0) during the
+> entrypoint phase.  Directories mounted `:ro` (cert, TLS) do not need to be
+> writable.
+
+---
 
 ### Log volume – persistent, multi-replica log storage
 
@@ -275,10 +453,13 @@ containers:
 
 ---
 
-## Docker Compose deployment
+## Docker Compose / Podman Compose deployment
 
 The `docker-compose.yml` in the repository root starts SimpleSAMLphp together
-with a Memcached sidecar for session storage.
+with a Memcached sidecar for session storage.  All `docker compose` commands
+below have a direct Podman equivalent – replace `docker compose` with
+`podman compose` (Podman ≥ 4.7 has `compose` built-in; older versions need the
+`podman-compose` package).
 
 ### Quick start
 
@@ -351,14 +532,20 @@ volumes:
 **6. Start the stack**
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d    # Docker
+podman compose up --build -d    # Podman
 ```
 
 **7. Check status**
 
 ```bash
+# Docker
 docker compose ps
 docker compose logs -f simplesamlphp
+
+# Podman
+podman compose ps
+podman compose logs -f simplesamlphp
 ```
 
 SimpleSAMLphp will be available at `https://<FQDN>/simplesaml/`.
@@ -396,11 +583,24 @@ stack (SimpleSAMLphp + Memcached) on Kubernetes.
 
 ### Quick start
 
-**1. Build and push the image**
+**1. Choose an image**
+
+Use the pre-built image from the GitHub Container Registry (see [Pre-built
+image](#pre-built-image) above) or build and push your own:
 
 ```bash
+# Option A – pre-built (no build step required)
+IMAGE=ghcr.io/atterdag/docker-simplesamlphp:latest
+
+# Option B – build and push your own
+# Docker
 docker build -t ghcr.io/<ORG>/docker-simplesamlphp:latest .
 docker push ghcr.io/<ORG>/docker-simplesamlphp:latest
+# Podman
+podman build -t ghcr.io/<ORG>/docker-simplesamlphp:latest .
+podman push ghcr.io/<ORG>/docker-simplesamlphp:latest
+
+IMAGE=ghcr.io/<ORG>/docker-simplesamlphp:latest
 ```
 
 **2. Create the SP SAML signing credentials**
@@ -504,19 +704,28 @@ The cron tag defaults to `metarefresh` and the output directory to
 
 ### Triggering a refresh
 
-**Docker Compose – exec into the running container:**
+**Docker Compose / Podman Compose – exec into the running container:**
 
 ```bash
-docker compose exec simplesamlphp metarefresh.sh
+docker compose exec simplesamlphp metarefresh.sh    # Docker
+podman compose exec simplesamlphp metarefresh.sh    # Podman
 ```
 
-**Docker – one-shot standalone container:**
+**Docker / Podman – one-shot standalone container:**
 
 ```bash
+# Docker
 docker run --rm \
   -e SIMPLESAMLPHP_CRON_SECRET=<secret> \
   -e SIMPLESAMLPHP_METAREFRESH_METADATA_URL=https://federation.example.org/metadata.xml \
   -v ./metadata:/var/simplesamlphp/metadata \
+  <image> metarefresh.sh
+
+# Podman
+podman run --rm \
+  -e SIMPLESAMLPHP_CRON_SECRET=<secret> \
+  -e SIMPLESAMLPHP_METAREFRESH_METADATA_URL=https://federation.example.org/metadata.xml \
+  -v ./metadata:/var/simplesamlphp/metadata:z \
   <image> metarefresh.sh
 ```
 
@@ -579,10 +788,12 @@ uncomment the `'certificates'` line in
 
 ```bash
 # Default version (2.5.0)
-docker build -t simplesamlphp .
+docker build -t simplesamlphp .    # Docker
+podman build -t simplesamlphp .    # Podman
 
 # Specific SimpleSAMLphp version
 docker build --build-arg SIMPLESAMLPHP_VERSION=2.5.0 -t simplesamlphp .
+podman build --build-arg SIMPLESAMLPHP_VERSION=2.5.0 -t simplesamlphp .
 ```
 
 ### Custom artifact registry / corporate proxy
@@ -603,7 +814,16 @@ Nexus**, or any other Docker / generic / Composer proxy repository.
 #### Example – Artifactory
 
 ```bash
+# Docker
 docker build \
+  --build-arg COMPOSER_IMAGE=artifactory.example.com/docker/composer:2 \
+  --build-arg PHP_IMAGE=artifactory.example.com/docker/php:8.4-apache \
+  --build-arg SIMPLESAMLPHP_TARBALL_URL=https://artifactory.example.com/generic-remote/simplesamlphp/simplesamlphp-2.5.0-full.tar.gz \
+  --build-arg COMPOSER_PACKAGIST_URL=https://artifactory.example.com/api/composer/packagist \
+  -t simplesamlphp .
+
+# Podman (identical flags)
+podman build \
   --build-arg COMPOSER_IMAGE=artifactory.example.com/docker/composer:2 \
   --build-arg PHP_IMAGE=artifactory.example.com/docker/php:8.4-apache \
   --build-arg SIMPLESAMLPHP_TARBALL_URL=https://artifactory.example.com/generic-remote/simplesamlphp/simplesamlphp-2.5.0-full.tar.gz \
@@ -625,7 +845,8 @@ MEMCACHED_IMAGE=artifactory.example.com/docker/memcached:alpine
 Then run:
 
 ```bash
-docker compose up --build
+docker compose up --build    # Docker
+podman compose up --build    # Podman
 ```
 
 > **Kubernetes:** The `k8s/memcached.yaml` and `k8s/metarefresh-cronjob.yaml`
